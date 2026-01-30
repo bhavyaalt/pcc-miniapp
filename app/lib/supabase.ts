@@ -472,9 +472,6 @@ export interface LegacyPool {
   created_at: string;
 }
 
-// Re-export Pool as alias for compatibility
-export type { Pool };
-
 export interface PoolMember {
   id: string;
   pool_id: string;

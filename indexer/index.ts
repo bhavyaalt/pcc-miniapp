@@ -162,10 +162,10 @@ async function handlePoolCreated(
   
   // Fetch full pool data
   const poolData = await fetchPoolData(publicClient, poolAddress);
-  poolData.created_tx = log.transactionHash;
+  const poolDataWithTx = { ...poolData, created_tx: log.transactionHash };
   
   // Upsert to DB
-  await supabase.from('pools').upsert(poolData, { onConflict: 'address' });
+  await supabase.from('pools').upsert(poolDataWithTx, { onConflict: 'address' });
   
   // Track pool for future events
   state.pools.add(poolAddress.toLowerCase());

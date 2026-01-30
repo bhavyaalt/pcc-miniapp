@@ -55,8 +55,8 @@ export default function Home() {
       if (address) {
         const shares: Record<string, { amount: number; percent: number }> = {};
         for (const pool of poolsData) {
-          const share = await getUserShare(pool.id, address);
-          if (share) shares[pool.id] = share;
+          const share = await getUserShare(pool.address, address);
+          if (share) shares[pool.address] = share;
         }
         setUserShares(shares);
       }
@@ -73,14 +73,15 @@ export default function Home() {
 
   // Calculations
   const totalPooledValue = pools.reduce((sum, p) => {
-    if (p.deposit_token === 'ETH') return sum + p.total_deposited * 2500;
-    return sum + p.total_deposited;
+    const deposited = parseFloat(p.total_deposited);
+    if (p.deposit_token_symbol === 'ETH') return sum + deposited * 2500;
+    return sum + deposited;
   }, 0);
 
   const userTotalValue = Object.entries(userShares).reduce((sum, [poolId, share]) => {
-    const pool = pools.find(p => p.id === poolId);
+    const pool = pools.find(p => p.address === poolId);
     if (!pool) return sum;
-    if (pool.deposit_token === 'ETH') return sum + share.amount * 2500;
+    if (pool.deposit_token_symbol === 'ETH') return sum + share.amount * 2500;
     return sum + share.amount;
   }, 0);
 
@@ -93,7 +94,7 @@ export default function Home() {
         <PoolDetail
           pool={selectedPool}
           userAddress={address}
-          userShare={userShares[selectedPool.id]}
+          userShare={userShares[selectedPool.address]}
           onBack={() => {
             setView('home');
             setSelectedPool(null);
@@ -139,7 +140,7 @@ export default function Home() {
             onSuccess={loadData}
             project={projectToFund}
             userAddress={address}
-            userPools={pools.filter(p => userShares[p.id])}
+            userPools={pools.filter(p => userShares[p.address])}
           />
         )}
       </>
@@ -224,14 +225,16 @@ export default function Home() {
             <section className="px-5 mb-6">
               <p className="text-[#666] text-xs tracking-wider mb-3">ACTION REQUIRED</p>
               {activeRequests.slice(0, 1).map((request) => {
-                const pool = pools.find(p => p.id === request.pool_id);
-                const totalVotes = request.yes_votes + request.no_votes;
-                const approvalPercent = totalVotes > 0 ? (request.yes_votes / totalVotes) * 100 : 0;
+                const pool = pools.find(p => p.address === request.pool_address);
+                const yesVotes = parseFloat(request.yes_votes);
+                const noVotes = parseFloat(request.no_votes);
+                const totalVotes = yesVotes + noVotes;
+                const approvalPercent = totalVotes > 0 ? (yesVotes / totalVotes) * 100 : 0;
                 const timeLeft = getTimeLeft(request.voting_ends_at);
                 
                 return (
                   <button
-                    key={request.id}
+                    key={request.onchain_id}
                     onClick={() => setSelectedRequest(request)}
                     className="w-full bg-gradient-to-br from-[#22c55e] to-[#16a34a] rounded-2xl p-5 relative overflow-hidden text-left"
                   >
@@ -247,10 +250,10 @@ export default function Home() {
                         <ChevronRight className="w-5 h-5 text-white/80" />
                       </div>
                       
-                      <p className="text-white/80 text-sm mb-1">Funding Request #{request.id.slice(-3)}</p>
+                      <p className="text-white/80 text-sm mb-1">Funding Request #{request.onchain_id}</p>
                       <p className="text-4xl font-bold text-white mb-4">
-                        {formatMoney(request.amount)}
-                        <span className="text-2xl">{pool?.deposit_token === 'ETH' ? 'Ξ' : '$'}</span>
+                        {formatMoney(parseFloat(request.amount))}
+                        <span className="text-2xl">{pool?.deposit_token_symbol === 'ETH' ? 'Ξ' : '$'}</span>
                       </p>
                       
                       <div className="h-1.5 bg-black/20 rounded-full mb-2">
@@ -287,12 +290,12 @@ export default function Home() {
             ) : (
               <div className="space-y-3">
                 {pools.map((pool) => {
-                  const userShare = userShares[pool.id];
+                  const userShare = userShares[pool.address];
                   const sharePercent = userShare?.percent || 0;
                   
                   return (
                     <button
-                      key={pool.id}
+                      key={pool.address}
                       onClick={() => {
                         setSelectedPool(pool);
                         setView('pool-detail');
@@ -305,15 +308,15 @@ export default function Home() {
                           {userShare ? 'Your Share' : 'Total Pooled'}
                         </p>
                         <p className="text-2xl font-bold">
-                          {formatMoney(userShare?.amount || pool.total_deposited)}
+                          {formatMoney(userShare?.amount || parseFloat(pool.total_deposited))}
                           <span className="text-[#22c55e] text-lg ml-1">
-                            {pool.deposit_token === 'ETH' ? 'Ξ' : '$'}
+                            {pool.deposit_token_symbol === 'ETH' ? 'Ξ' : '$'}
                           </span>
                         </p>
                       </div>
                       
                       <div className="text-right">
-                        <span className="text-[#666] text-sm">{pool.deposit_token}</span>
+                        <span className="text-[#666] text-sm">{pool.deposit_token_symbol}</span>
                         <div className="mt-2">
                           {sharePercent >= 50 ? (
                             <span className="text-[#22c55e] font-semibold text-lg">{sharePercent.toFixed(0)}%</span>
@@ -353,9 +356,9 @@ export default function Home() {
             </div>
           ) : (
             <div className="space-y-3">
-              {pools.filter(p => userShares[p.id]).map((pool) => (
+              {pools.filter(p => userShares[p.address]).map((pool) => (
                 <button
-                  key={pool.id}
+                  key={pool.address}
                   onClick={() => {
                     setSelectedPool(pool);
                     setView('pool-detail');
@@ -365,11 +368,11 @@ export default function Home() {
                   <div className="flex justify-between items-center">
                     <div>
                       <h3 className="font-semibold">{pool.name}</h3>
-                      <p className="text-[#666] text-sm">{pool.deposit_token}</p>
+                      <p className="text-[#666] text-sm">{pool.deposit_token_symbol}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xl font-bold">{formatMoney(userShares[pool.id].amount)}</p>
-                      <p className="text-[#22c55e] text-sm">{userShares[pool.id].percent.toFixed(1)}%</p>
+                      <p className="text-xl font-bold">{formatMoney(userShares[pool.address].amount)}</p>
+                      <p className="text-[#22c55e] text-sm">{userShares[pool.address].percent.toFixed(1)}%</p>
                     </div>
                   </div>
                 </button>
@@ -467,15 +470,28 @@ export default function Home() {
         />
       )}
 
-      {selectedRequest && selectedPool && address && userShares[selectedPool.id] && (
+      {selectedRequest && selectedPool && address && userShares[selectedPool.address] && (
         <VoteModal
           isOpen={!!selectedRequest}
           onClose={() => setSelectedRequest(null)}
           onSuccess={loadData}
-          request={selectedRequest}
-          token={selectedPool.deposit_token}
-          voterAddress={address}
-          votePower={userShares[selectedPool.id].amount}
+          poolAddress={selectedPool.address as `0x${string}`}
+          request={{
+            id: BigInt(selectedRequest.onchain_id),
+            title: selectedRequest.title,
+            description: selectedRequest.description_uri,
+            amount: BigInt(Math.floor(parseFloat(selectedRequest.amount) * 10 ** selectedPool.deposit_token_decimals)),
+            requestType: selectedRequest.request_type === 'GRANT' ? 0 : selectedRequest.request_type === 'LOAN' ? 1 : 2,
+            requester: selectedRequest.requester_address as `0x${string}`,
+            yesVotes: BigInt(Math.floor(parseFloat(selectedRequest.yes_votes) * 1e18)),
+            noVotes: BigInt(Math.floor(parseFloat(selectedRequest.no_votes) * 1e18)),
+            votingEndsAt: BigInt(Math.floor(new Date(selectedRequest.voting_ends_at).getTime() / 1000)),
+            duration: BigInt(selectedRequest.duration),
+          }}
+          tokenSymbol={selectedPool.deposit_token_symbol}
+          tokenDecimals={selectedPool.deposit_token_decimals}
+          voterAddress={address as `0x${string}`}
+          votePower={BigInt(Math.floor(userShares[selectedPool.address].amount * 1e18))}
         />
       )}
     </main>

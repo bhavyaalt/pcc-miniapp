@@ -4,49 +4,72 @@
 
 :root {
   --background: #0a0a0f;
-  --foreground: #fafafa;
-  --card: #111118;
-  --card-foreground: #fafafa;
+  --foreground: #ffffff;
+  --card: #111116;
+  --card-foreground: #ffffff;
   --primary: #22c55e;
-  --primary-foreground: #0a0a0f;
-  --secondary: #27272a;
-  --secondary-foreground: #fafafa;
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa;
-  --border: #27272a;
-  --radius: 0.75rem;
+  --primary-foreground: #000000;
+  --secondary: #1a1a1f;
+  --muted: #666666;
+  --border: #222222;
 }
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: var(--border);
   }
   
-  html, body {
-    @apply bg-background text-foreground;
-    max-width: 100vw;
-    overflow-x: hidden;
+  html {
+    background: var(--background);
+    color: var(--foreground);
   }
   
   body {
-    font-family: var(--font-inter), system-ui, sans-serif;
+    font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background: var(--background);
+    color: var(--foreground);
+    min-height: 100vh;
   }
 }
 
-@layer utilities {
-  .gradient-primary {
-    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  }
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
 }
 
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 2px;
+}
+
+/* Selection */
+::selection {
+  background: rgba(34, 197, 94, 0.3);
+  color: white;
+}
+
+/* Focus styles */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: background-color, border-color, color, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+/* Disable transitions for transform/layout to keep animations smooth */
+.no-transition {
+  transition: none !important;
 }

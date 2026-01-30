@@ -3,320 +3,201 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Button, Card, Badge, Tabs, TabsList, TabsTrigger, TabsContent } from './components/ui';
-import { PoolCard } from './components/PoolCard';
-import { CreatePoolForm } from './components/CreatePoolForm';
-import { getPools, Pool } from './lib/supabase';
-import { formatAmount } from './lib/utils';
-import { Plus, Wallet, TrendingUp, Users, Coins, Zap } from 'lucide-react';
+import { Plus, LayoutGrid, Info, Users, CheckSquare, ChevronRight, TrendingUp } from 'lucide-react';
 
-// Demo pools for when DB is empty
-const demoPools: Pool[] = [
-  {
-    id: 'demo-1',
-    name: 'Alpha Friends Circle',
-    description: 'Web3 builders pooling funds to support early-stage projects',
-    deposit_token: 'USDC',
-    total_deposited: 15000,
-    member_count: 5,
-    active_requests: 2,
-    admin_address: '0x1234...5678',
-    voting_period_days: 3,
-    quorum_percent: 50,
-    approval_threshold_percent: 60,
-    guardian_threshold_percent: 20,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'demo-2',
-    name: 'DeFi Degens DAO',
-    description: 'High-risk, high-reward funding for innovative DeFi protocols',
-    deposit_token: 'ETH',
-    total_deposited: 25,
-    member_count: 12,
-    active_requests: 1,
-    admin_address: '0xabcd...efgh',
-    voting_period_days: 5,
-    quorum_percent: 40,
-    approval_threshold_percent: 66,
-    guardian_threshold_percent: 25,
-    created_at: new Date().toISOString(),
-  },
+// Demo data
+const demoPools = [
+  { id: '1', name: 'Alpha Ventures', token: 'USDC', yourShare: 12376, sharePercent: 75, totalDeposited: 16500 },
+  { id: '2', name: 'Creator Grant', token: 'ETH', yourShare: 9800, sharePercent: 59, totalDeposited: 16610 },
+  { id: '3', name: 'Family Fund', token: 'DAI', yourShare: 5200, sharePercent: 42, totalDeposited: 12380 },
 ];
+
+const demoRequest = {
+  id: '802',
+  title: 'Funding Request',
+  amount: 44205,
+  approvedPercent: 75,
+  timeLeft: '2h left',
+};
 
 export default function Home() {
   const { address, isConnected } = useAccount();
-  const [pools, setPools] = useState<Pool[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [selectedPool, setSelectedPool] = useState<Pool | null>(null);
+  const [activeTab, setActiveTab] = useState('dashboard');
 
-  const loadPools = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getPools();
-      setPools(data.length > 0 ? data : demoPools);
-    } catch (error) {
-      console.error('Error loading pools:', error);
-      setPools(demoPools);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const totalPooledValue = 154520;
+  const monthlyChange = 12.6;
 
-  useEffect(() => {
-    loadPools();
-  }, [loadPools]);
-
-  const handlePoolCreated = () => {
-    setShowCreateForm(false);
-    loadPools();
-  };
-
-  // Stats
-  const totalTVL = pools.reduce((acc, p) => {
-    if (p.deposit_token === 'ETH') return acc + p.total_deposited * 2500;
-    return acc + p.total_deposited;
-  }, 0);
-  const totalMembers = pools.reduce((acc, p) => acc + p.member_count, 0);
-  const activeRequests = pools.reduce((acc, p) => acc + p.active_requests, 0);
+  const formatMoney = (n: number) => n.toLocaleString();
 
   return (
-    <main className="min-h-screen pb-24" style={{ background: 'var(--background)' }}>
+    <main className="min-h-screen bg-[#0a0a0f] text-white pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-40 backdrop-blur-xl border-b" style={{ background: 'rgba(10,10,15,0.8)', borderColor: 'var(--border)' }}>
-        <div className="px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-              <Zap className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-bold text-lg">PCC</span>
+      <header className="px-5 pt-6 pb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-[#22c55e] flex items-center justify-center">
+            <span className="text-black font-bold text-sm">cb</span>
           </div>
-          <ConnectButton.Custom>
-            {({ account, chain, openConnectModal, mounted }) => {
-              const connected = mounted && account && chain;
-              return (
-                <div>
-                  {connected ? (
-                    <Badge variant="secondary" className="font-mono">
-                      {account.displayName}
-                    </Badge>
-                  ) : (
-                    <Button onClick={openConnectModal} size="sm">
-                      Connect
-                    </Button>
-                  )}
-                </div>
-              );
-            }}
-          </ConnectButton.Custom>
+          <span className="font-semibold text-lg">PCC</span>
         </div>
+        
+        <ConnectButton.Custom>
+          {({ account, openConnectModal, openAccountModal, mounted }) => {
+            const connected = mounted && account;
+            return connected ? (
+              <button 
+                onClick={openAccountModal}
+                className="flex items-center gap-2 bg-[#1a1a1f] rounded-full pl-3 pr-2 py-1.5"
+              >
+                <span className="text-sm">{account.displayName}</span>
+                <div className="w-6 h-6 rounded-full bg-[#333] flex items-center justify-center">
+                  <span className="text-xs">👤</span>
+                </div>
+              </button>
+            ) : (
+              <button 
+                onClick={openConnectModal}
+                className="bg-[#1a1a1f] rounded-full px-4 py-1.5 text-sm"
+              >
+                Connect
+              </button>
+            );
+          }}
+        </ConnectButton.Custom>
       </header>
 
-      <div className="px-4 py-6 space-y-6">
-        {/* Hero */}
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold">Peer Credit Circles</h1>
-          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            Pool funds with friends. Fund projects together. Share rewards.
-          </p>
+      {/* Hero Stat */}
+      <section className="px-5 py-6 text-center">
+        <p className="text-[#666] text-xs tracking-wider mb-2">TOTAL POOLED VALUE</p>
+        <h1 className="text-5xl font-bold mb-2">
+          {formatMoney(totalPooledValue)}
+          <span className="text-[#22c55e] text-3xl">$</span>
+        </h1>
+        <p className="text-[#22c55e] text-sm">
+          <TrendingUp className="w-3 h-3 inline mr-1" />
+          +{monthlyChange}% <span className="text-[#666]">this month</span>
+        </p>
+      </section>
+
+      {/* Tabs */}
+      <nav className="px-5 mb-6">
+        <div className="flex gap-1">
+          {['Dashboard', 'My Pools', 'Activity', 'Settings'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab.toLowerCase().replace(' ', '-'))}
+              className={`px-4 py-2 rounded-full text-sm transition-all ${
+                activeTab === tab.toLowerCase().replace(' ', '-')
+                  ? 'bg-white text-black font-medium'
+                  : 'text-[#888] hover:text-white'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
+      </nav>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3">
-          <Card className="text-center p-3">
-            <Coins className="w-5 h-5 mx-auto mb-1" style={{ color: 'var(--primary)' }} />
-            <div className="text-lg font-bold">${formatAmount(totalTVL, 0)}</div>
-            <div className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Total TVL</div>
-          </Card>
-          <Card className="text-center p-3">
-            <Users className="w-5 h-5 mx-auto mb-1 text-blue-400" />
-            <div className="text-lg font-bold">{totalMembers}</div>
-            <div className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Members</div>
-          </Card>
-          <Card className="text-center p-3">
-            <TrendingUp className="w-5 h-5 mx-auto mb-1 text-yellow-400" />
-            <div className="text-lg font-bold">{activeRequests}</div>
-            <div className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Active</div>
-          </Card>
-        </div>
-
-        {/* Tabs */}
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="w-full grid grid-cols-2">
-            <TabsTrigger value="all">All Pools</TabsTrigger>
-            <TabsTrigger value="my">My Pools</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="all">
-            {loading ? (
-              <div className="space-y-3">
-                {[1, 2].map((i) => (
-                  <Card key={i} className="h-32 animate-pulse" style={{ background: 'var(--secondary)' }} />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {pools.map((pool) => (
-                  <PoolCard
-                    key={pool.id}
-                    pool={pool}
-                    onClick={() => setSelectedPool(pool)}
-                  />
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="my">
-            {!isConnected ? (
-              <Card className="text-center py-8">
-                <Wallet className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--muted-foreground)' }} />
-                <p className="mb-4" style={{ color: 'var(--muted-foreground)' }}>Connect wallet to see your pools</p>
-                <ConnectButton />
-              </Card>
-            ) : (
-              <div className="space-y-3">
-                {pools
-                  .filter((p) => p.admin_address.toLowerCase() === address?.toLowerCase())
-                  .map((pool) => (
-                    <PoolCard
-                      key={pool.id}
-                      pool={pool}
-                      onClick={() => setSelectedPool(pool)}
-                    />
-                  ))}
-                {pools.filter((p) => p.admin_address.toLowerCase() === address?.toLowerCase()).length === 0 && (
-                  <Card className="text-center py-8">
-                    <p className="mb-4" style={{ color: 'var(--muted-foreground)' }}>You haven&apos;t created any pools yet</p>
-                    <Button onClick={() => setShowCreateForm(true)}>
-                      <Plus className="w-4 h-4" />
-                      Create Your First Pool
-                    </Button>
-                  </Card>
-                )}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      {/* FAB */}
-      {isConnected && (
-        <div className="fixed bottom-6 right-6">
-          <Button
-            size="lg"
-            className="rounded-full shadow-xl h-14 w-14"
-            style={{ boxShadow: '0 0 30px rgba(34, 197, 94, 0.3)' }}
-            onClick={() => setShowCreateForm(true)}
-          >
-            <Plus className="w-6 h-6" />
-          </Button>
-        </div>
-      )}
-
-      {/* Create Pool Modal */}
-      {showCreateForm && address && (
-        <CreatePoolForm
-          onClose={() => setShowCreateForm(false)}
-          onSuccess={handlePoolCreated}
-          userAddress={address}
-        />
-      )}
-
-      {/* Pool Detail Modal */}
-      {selectedPool && (
-        <PoolDetailModal
-          pool={selectedPool}
-          onClose={() => setSelectedPool(null)}
-          userAddress={address}
-        />
-      )}
-    </main>
-  );
-}
-
-// Pool Detail Modal Component
-function PoolDetailModal({ pool, onClose, userAddress }: { pool: Pool; onClose: () => void; userAddress?: string }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: 'rgba(0,0,0,0.8)' }}>
-      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border animate-fade-in" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-        {/* Header */}
-        <div className="sticky top-0 border-b p-4" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">{pool.name}</h2>
-            <Button variant="ghost" size="sm" onClick={onClose}>✕</Button>
+      {/* Action Required */}
+      <section className="px-5 mb-6">
+        <p className="text-[#666] text-xs tracking-wider mb-3">ACTION REQUIRED</p>
+        <div className="bg-gradient-to-br from-[#22c55e] to-[#16a34a] rounded-2xl p-5 relative overflow-hidden">
+          {/* Subtle pattern overlay */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-3xl" />
           </div>
-          {pool.description && (
-            <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>{pool.description}</p>
-          )}
-        </div>
-
-        {/* Content */}
-        <div className="p-4 space-y-4">
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-3">
-            <Card className="p-3">
-              <div className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Total Deposited</div>
-              <div className="text-xl font-bold">{formatAmount(pool.total_deposited)} {pool.deposit_token}</div>
-            </Card>
-            <Card className="p-3">
-              <div className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Members</div>
-              <div className="text-xl font-bold">{pool.member_count}</div>
-            </Card>
-          </div>
-
-          {/* Config */}
-          <Card className="p-4 space-y-3">
-            <h3 className="font-semibold">Pool Configuration</h3>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div style={{ color: 'var(--muted-foreground)' }}>Voting Period</div>
-              <div>{pool.voting_period_days} days</div>
-              <div style={{ color: 'var(--muted-foreground)' }}>Quorum</div>
-              <div>{pool.quorum_percent}%</div>
-              <div style={{ color: 'var(--muted-foreground)' }}>Approval Threshold</div>
-              <div>{pool.approval_threshold_percent}%</div>
-              <div style={{ color: 'var(--muted-foreground)' }}>Guardian Threshold</div>
-              <div>{pool.guardian_threshold_percent}%</div>
+          
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <span className="bg-black/20 text-white text-xs font-medium px-3 py-1 rounded-full">
+                VOTE ENDING SOON
+              </span>
+              <ChevronRight className="w-5 h-5 text-white/80" />
             </div>
-          </Card>
-
-          {/* Active Requests */}
-          {pool.active_requests > 0 && (
-            <Card className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold">Active Requests</h3>
-                <Badge variant="warning">{pool.active_requests}</Badge>
-              </div>
-              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                Voting is in progress. Connect wallet to participate.
-              </p>
-            </Card>
-          )}
-
-          {/* Actions */}
-          <div className="space-y-2">
-            <Button className="w-full" variant="default">
-              <Coins className="w-4 h-4" />
-              Deposit Funds
-            </Button>
-            <Button className="w-full" variant="secondary">
-              <Plus className="w-4 h-4" />
-              Request Funding
-            </Button>
+            
+            <p className="text-white/80 text-sm mb-1">Funding Request #{demoRequest.id}</p>
+            <p className="text-4xl font-bold text-white mb-4">
+              {formatMoney(demoRequest.amount)}
+              <span className="text-2xl">$</span>
+            </p>
+            
+            {/* Progress bar */}
+            <div className="h-1.5 bg-black/20 rounded-full mb-2">
+              <div 
+                className="h-full bg-white rounded-full transition-all"
+                style={{ width: `${demoRequest.approvedPercent}%` }}
+              />
+            </div>
+            
+            <div className="flex justify-between text-sm">
+              <span className="text-white font-medium">{demoRequest.approvedPercent}% Approved</span>
+              <span className="text-white/70">{demoRequest.timeLeft}</span>
+            </div>
           </div>
-
-          {/* Admin Notice */}
-          {userAddress && pool.admin_address.toLowerCase() === userAddress.toLowerCase() && (
-            <Card className="p-3" style={{ borderColor: 'var(--primary)' }}>
-              <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--primary)' }}>
-                <Zap className="w-4 h-4" />
-                You are the admin of this pool
-              </div>
-            </Card>
-          )}
         </div>
-      </div>
-    </div>
+      </section>
+
+      {/* Active Pools */}
+      <section className="px-5">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[#666] text-xs tracking-wider">ACTIVE POOLS</p>
+          <ChevronRight className="w-4 h-4 text-[#666]" />
+        </div>
+        
+        <div className="space-y-3">
+          {demoPools.map((pool) => (
+            <div 
+              key={pool.id}
+              className="bg-[#111116] border border-[#222] rounded-2xl p-4 flex items-center justify-between"
+            >
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-semibold">{pool.name}</h3>
+                </div>
+                <p className="text-[#666] text-xs mb-1">Your Share</p>
+                <p className="text-2xl font-bold">
+                  {formatMoney(pool.yourShare)}
+                  <span className="text-[#22c55e] text-lg">$</span>
+                </p>
+              </div>
+              
+              <div className="text-right">
+                <span className="text-[#666] text-sm">{pool.token}</span>
+                <div className="mt-2">
+                  {pool.sharePercent >= 70 ? (
+                    <span className="text-[#22c55e] font-semibold text-lg">{pool.sharePercent}%</span>
+                  ) : (
+                    <span className="text-[#888] font-medium">{pool.sharePercent}%</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0f]/95 backdrop-blur-lg border-t border-[#222] px-6 py-4">
+        <div className="flex items-center justify-around">
+          <button className="flex flex-col items-center gap-1 text-white">
+            <LayoutGrid className="w-5 h-5" />
+          </button>
+          <button className="flex flex-col items-center gap-1 text-[#666]">
+            <Info className="w-5 h-5" />
+          </button>
+          
+          {/* Center FAB */}
+          <button className="w-12 h-12 bg-[#22c55e] rounded-full flex items-center justify-center -mt-6 shadow-lg shadow-[#22c55e]/30">
+            <Plus className="w-6 h-6 text-black" />
+          </button>
+          
+          <button className="flex flex-col items-center gap-1 text-[#666]">
+            <Users className="w-5 h-5" />
+          </button>
+          <button className="flex flex-col items-center gap-1 text-[#666]">
+            <CheckSquare className="w-5 h-5" />
+          </button>
+        </div>
+      </nav>
+    </main>
   );
 }

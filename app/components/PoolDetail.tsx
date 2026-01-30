@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Users, Clock, TrendingUp, Plus, ArrowUpRight, ArrowDownLeft, ChevronRight } from 'lucide-react';
-import { Pool, PoolMember, FundingRequest, getPoolMembers, getFundingRequests } from '../lib/supabase';
+import { ArrowLeft, Users, Clock, Plus, ArrowUpRight, ArrowDownLeft, ChevronRight } from 'lucide-react';
+import { Pool, Member, getPoolMembers, getPoolRequests, FundingRequest } from '../lib/supabase';
 import { DepositModal } from './DepositModal';
 import { WithdrawModal } from './WithdrawModal';
 
@@ -15,7 +15,7 @@ interface PoolDetailProps {
 }
 
 export function PoolDetail({ pool, userAddress, userShare, onBack, onCreateRequest }: PoolDetailProps) {
-  const [members, setMembers] = useState<PoolMember[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [requests, setRequests] = useState<FundingRequest[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'members'>('overview');
   const [loading, setLoading] = useState(true);
@@ -25,21 +25,27 @@ export function PoolDetail({ pool, userAddress, userShare, onBack, onCreateReque
   useEffect(() => {
     async function loadData() {
       const [membersData, requestsData] = await Promise.all([
-        getPoolMembers(pool.id),
-        getFundingRequests(pool.id),
+        getPoolMembers(pool.address),
+        getPoolRequests(pool.address),
       ]);
       setMembers(membersData);
       setRequests(requestsData);
       setLoading(false);
     }
     loadData();
-  }, [pool.id]);
+  }, [pool.address]);
 
-  const formatMoney = (n: number) => n.toLocaleString();
+  const formatMoney = (n: number | string) => {
+    const num = typeof n === 'string' ? parseFloat(n) : n;
+    return num.toLocaleString();
+  };
   const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
+  const totalDeposited = parseFloat(pool.total_deposited);
+  const minDeposit = parseFloat(pool.min_deposit);
   const activeRequests = requests.filter(r => r.status === 'VOTING');
   const totalMembers = members.length;
+  const votingPeriodHours = Math.floor(pool.voting_period / 3600);
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white pb-24">
@@ -52,10 +58,10 @@ export function PoolDetail({ pool, userAddress, userShare, onBack, onCreateReque
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">{pool.name}</h1>
-            <p className="text-[#888] text-sm mt-1">{pool.description}</p>
+            <p className="text-[#888] text-xs font-mono mt-1">{formatAddress(pool.address)}</p>
           </div>
           <span className="bg-[#111116] border border-[#222] rounded-full px-3 py-1 text-sm">
-            {pool.deposit_token}
+            {pool.deposit_token_symbol}
           </span>
         </div>
       </header>
@@ -66,8 +72,8 @@ export function PoolDetail({ pool, userAddress, userShare, onBack, onCreateReque
           <div className="bg-[#111116] border border-[#222] rounded-2xl p-4">
             <p className="text-[#888] text-xs mb-1">Total Pooled</p>
             <p className="text-2xl font-bold">
-              {formatMoney(pool.total_deposited)}
-              <span className="text-[#22c55e] text-lg ml-1">{pool.deposit_token === 'ETH' ? 'Ξ' : '$'}</span>
+              {formatMoney(totalDeposited)}
+              <span className="text-[#22c55e] text-lg ml-1">{pool.deposit_token_symbol}</span>
             </p>
           </div>
           <div className="bg-[#111116] border border-[#222] rounded-2xl p-4">
@@ -153,7 +159,7 @@ export function PoolDetail({ pool, userAddress, userShare, onBack, onCreateReque
                   </button>
                 </div>
                 {activeRequests.slice(0, 2).map((request) => (
-                  <RequestCard key={request.id} request={request} token={pool.deposit_token} />
+                  <RequestCard key={request.onchain_id} request={request} token={pool.deposit_token_symbol} />
                 ))}
               </div>
             )}
@@ -164,23 +170,23 @@ export function PoolDetail({ pool, userAddress, userShare, onBack, onCreateReque
               <div className="bg-[#111116] border border-[#222] rounded-2xl p-4 space-y-3">
                 <div className="flex justify-between">
                   <span className="text-[#888]">Min Deposit</span>
-                  <span>{pool.min_deposit} {pool.deposit_token}</span>
+                  <span>{formatMoney(minDeposit)} {pool.deposit_token_symbol}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#888]">Voting Period</span>
-                  <span>{pool.voting_period_hours}h</span>
+                  <span>{votingPeriodHours}h</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#888]">Quorum Required</span>
-                  <span>{pool.quorum_percent}%</span>
+                  <span>{pool.quorum_bps / 100}%</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#888]">Approval Threshold</span>
-                  <span>{pool.approval_threshold_percent}%</span>
+                  <span>{pool.approval_bps / 100}%</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#888]">Guardian Threshold</span>
-                  <span>{pool.guardian_threshold_percent}%</span>
+                  <span>{pool.guardian_threshold_bps / 100}%</span>
                 </div>
               </div>
             </div>
@@ -214,7 +220,7 @@ export function PoolDetail({ pool, userAddress, userShare, onBack, onCreateReque
             ) : (
               <div className="space-y-3">
                 {requests.map((request) => (
-                  <RequestCard key={request.id} request={request} token={pool.deposit_token} />
+                  <RequestCard key={request.onchain_id} request={request} token={pool.deposit_token_symbol} />
                 ))}
               </div>
             )}
@@ -226,33 +232,37 @@ export function PoolDetail({ pool, userAddress, userShare, onBack, onCreateReque
             <p className="text-[#888] text-xs tracking-wider mb-4">MEMBERS ({totalMembers})</p>
             {loading ? (
               <div className="text-center py-8 text-[#888]">Loading...</div>
+            ) : members.length === 0 ? (
+              <div className="text-center py-8 text-[#888]">No members yet</div>
             ) : (
               <div className="space-y-2">
-                {members.map((member) => (
-                  <div
-                    key={member.id}
-                    className="bg-[#111116] border border-[#222] rounded-2xl p-4 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-[#222] rounded-full flex items-center justify-center">
-                        <span className="text-sm">👤</span>
+                {members.map((member) => {
+                  const memberShares = parseFloat(member.shares);
+                  const sharePercent = totalDeposited > 0 ? (memberShares / totalDeposited) * 100 : 0;
+                  return (
+                    <div
+                      key={member.address}
+                      className="bg-[#111116] border border-[#222] rounded-2xl p-4 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-[#222] rounded-full flex items-center justify-center">
+                          <span className="text-sm">👤</span>
+                        </div>
+                        <div>
+                          <p className="font-medium font-mono text-sm">{formatAddress(member.address)}</p>
+                          <p className="text-[#888] text-xs">
+                            {member.is_guardian && <span className="text-[#22c55e]">Guardian · </span>}
+                            Joined {new Date(member.joined_at).toLocaleDateString()}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{member.display_name || formatAddress(member.wallet_address)}</p>
-                        <p className="text-[#888] text-xs">
-                          {member.is_guardian && <span className="text-[#22c55e]">Guardian · </span>}
-                          Joined {new Date(member.joined_at).toLocaleDateString()}
-                        </p>
+                      <div className="text-right">
+                        <p className="font-semibold">{formatMoney(memberShares)}</p>
+                        <p className="text-[#888] text-xs">{sharePercent.toFixed(1)}%</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold">{formatMoney(member.deposited_amount)}</p>
-                      <p className="text-[#888] text-xs">
-                        {((member.deposited_amount / pool.total_deposited) * 100).toFixed(1)}%
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -266,10 +276,17 @@ export function PoolDetail({ pool, userAddress, userShare, onBack, onCreateReque
           onClose={() => setShowDeposit(false)}
           onSuccess={() => {
             setShowDeposit(false);
-            // Reload data
           }}
-          pool={pool}
-          userAddress={userAddress}
+          pool={{
+            address: pool.address as `0x${string}`,
+            name: pool.name,
+            depositToken: pool.deposit_token as `0x${string}`,
+            depositTokenSymbol: pool.deposit_token_symbol,
+            depositTokenDecimals: pool.deposit_token_decimals,
+            minDeposit: BigInt(Math.floor(minDeposit * 10 ** pool.deposit_token_decimals)),
+            totalDeposited: BigInt(Math.floor(totalDeposited * 10 ** pool.deposit_token_decimals)),
+          }}
+          userAddress={userAddress as `0x${string}`}
         />
       )}
 
@@ -279,11 +296,15 @@ export function PoolDetail({ pool, userAddress, userShare, onBack, onCreateReque
           onClose={() => setShowWithdraw(false)}
           onSuccess={() => {
             setShowWithdraw(false);
-            // Reload data
           }}
-          pool={pool}
+          pool={{
+            address: pool.address as `0x${string}`,
+            name: pool.name,
+            depositTokenSymbol: pool.deposit_token_symbol,
+            depositTokenDecimals: pool.deposit_token_decimals,
+          }}
           userShare={userShare}
-          userAddress={userAddress}
+          userAddress={userAddress as `0x${string}`}
         />
       )}
     </div>
@@ -291,9 +312,12 @@ export function PoolDetail({ pool, userAddress, userShare, onBack, onCreateReque
 }
 
 function RequestCard({ request, token }: { request: FundingRequest; token: string }) {
-  const totalVotes = request.yes_votes + request.no_votes;
-  const approvalPercent = totalVotes > 0 ? (request.yes_votes / totalVotes) * 100 : 0;
+  const yesVotes = parseFloat(request.yes_votes);
+  const noVotes = parseFloat(request.no_votes);
+  const totalVotes = yesVotes + noVotes;
+  const approvalPercent = totalVotes > 0 ? (yesVotes / totalVotes) * 100 : 0;
   const isVoting = request.status === 'VOTING';
+  const amount = parseFloat(request.amount);
   
   const timeLeft = isVoting ? getTimeLeft(request.voting_ends_at) : null;
 
@@ -314,8 +338,8 @@ function RequestCard({ request, token }: { request: FundingRequest; token: strin
       
       <h3 className="font-semibold mb-1">{request.title}</h3>
       <p className="text-2xl font-bold mb-3">
-        {request.amount.toLocaleString()}
-        <span className="text-[#22c55e] text-lg ml-1">{token === 'ETH' ? 'Ξ' : '$'}</span>
+        {amount.toLocaleString()}
+        <span className="text-[#22c55e] text-lg ml-1">{token}</span>
       </p>
       
       {isVoting && (

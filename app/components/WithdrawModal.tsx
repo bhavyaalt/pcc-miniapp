@@ -1,22 +1,40 @@
 'use client';
 
-import { useState } from 'react';
-import { X, ArrowUpRight, AlertTriangle } from 'lucide-react';
-import { Pool } from '../lib/supabase';
+import { useState, useEffect } from 'react';
+import { X, ArrowUpRight, AlertTriangle, Check } from 'lucide-react';
+import { useWithdraw } from '../hooks/useContracts';
+import { parseUnits } from 'viem';
 
 interface WithdrawModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  pool: Pool;
+  pool: {
+    address: `0x${string}`;
+    name: string;
+    depositTokenSymbol: string;
+    depositTokenDecimals: number;
+  };
   userShare: { amount: number; percent: number };
-  userAddress: string;
+  userAddress: `0x${string}`;
 }
 
 export function WithdrawModal({ isOpen, onClose, onSuccess, pool, userShare, userAddress }: WithdrawModalProps) {
   const [amount, setAmount] = useState('');
   const [step, setStep] = useState<'amount' | 'confirm' | 'processing' | 'success'>('amount');
-  const [loading, setLoading] = useState(false);
+  
+  const { withdraw, isPending, isConfirming, isSuccess, error } = useWithdraw();
+
+  // Handle success
+  useEffect(() => {
+    if (isSuccess && step === 'processing') {
+      setStep('success');
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 2000);
+    }
+  }, [isSuccess, step, onSuccess, onClose]);
 
   if (!isOpen) return null;
 
@@ -28,24 +46,19 @@ export function WithdrawModal({ isOpen, onClose, onSuccess, pool, userShare, use
   const handleWithdraw = async () => {
     if (!amount || parseFloat(amount) <= 0 || parseFloat(amount) > maxWithdraw) return;
     
-    setLoading(true);
     setStep('processing');
-
-    // Simulate withdrawal
-    await new Promise(r => setTimeout(r, 2000));
-    setStep('success');
-    setLoading(false);
-
-    setTimeout(() => {
-      onSuccess();
-      onClose();
-    }, 1500);
+    
+    // Share tokens have 18 decimals
+    const amountBigInt = parseUnits(amount, 18);
+    withdraw(pool.address, amountBigInt);
   };
 
   const setPercentage = (pct: number) => {
     const amt = (maxWithdraw * pct) / 100;
-    setAmount(amt.toFixed(pool.deposit_token === 'ETH' ? 4 : 2));
+    setAmount(amt.toFixed(2));
   };
+
+  const isLoading = isPending || isConfirming;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
@@ -58,7 +71,7 @@ export function WithdrawModal({ isOpen, onClose, onSuccess, pool, userShare, use
             </div>
             <div>
               <h2 className="font-semibold">Withdraw from {pool.name}</h2>
-              <p className="text-[#888] text-xs">Available: {formatMoney(maxWithdraw)} {pool.deposit_token}</p>
+              <p className="text-[#888] text-xs">Available: {formatMoney(maxWithdraw)} {pool.depositTokenSymbol}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-[#222] rounded-full">
@@ -67,6 +80,13 @@ export function WithdrawModal({ isOpen, onClose, onSuccess, pool, userShare, use
         </div>
 
         <div className="p-5">
+          {/* Error display */}
+          {error && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm mb-4">
+              {error.message || 'Transaction failed'}
+            </div>
+          )}
+
           {/* Amount Step */}
           {step === 'amount' && (
             <>
@@ -83,7 +103,7 @@ export function WithdrawModal({ isOpen, onClose, onSuccess, pool, userShare, use
                     max={maxWithdraw}
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#888] font-medium">
-                    {pool.deposit_token}
+                    {pool.depositTokenSymbol}
                   </span>
                 </div>
               </div>
@@ -106,15 +126,15 @@ export function WithdrawModal({ isOpen, onClose, onSuccess, pool, userShare, use
               <div className="bg-[#111116] border border-[#222] rounded-xl p-4 mb-4">
                 <div className="flex justify-between mb-2">
                   <span className="text-[#888]">Your current share</span>
-                  <span>{formatMoney(userShare.amount)} {pool.deposit_token}</span>
+                  <span>{formatMoney(userShare.amount)} {pool.depositTokenSymbol}</span>
                 </div>
                 <div className="flex justify-between mb-2">
                   <span className="text-[#888]">Withdrawing</span>
-                  <span className="text-orange-400">-{amount || '0'} {pool.deposit_token}</span>
+                  <span className="text-orange-400">-{amount || '0'} {pool.depositTokenSymbol}</span>
                 </div>
                 <div className="border-t border-[#222] pt-2 mt-2 flex justify-between font-semibold">
                   <span>Remaining</span>
-                  <span>{formatMoney(Math.max(0, userShare.amount - parseFloat(amount || '0')))} {pool.deposit_token}</span>
+                  <span>{formatMoney(Math.max(0, userShare.amount - parseFloat(amount || '0')))} {pool.depositTokenSymbol}</span>
                 </div>
               </div>
 
@@ -146,7 +166,7 @@ export function WithdrawModal({ isOpen, onClose, onSuccess, pool, userShare, use
               <div className="bg-[#111116] border border-[#222] rounded-xl p-5 mb-6 text-center">
                 <p className="text-[#888] text-sm mb-2">You are withdrawing</p>
                 <p className="text-3xl font-bold mb-1">
-                  {amount} {pool.deposit_token}
+                  {amount} {pool.depositTokenSymbol}
                 </p>
                 <p className="text-[#888] text-sm">from {pool.name}</p>
               </div>
@@ -175,7 +195,9 @@ export function WithdrawModal({ isOpen, onClose, onSuccess, pool, userShare, use
                 <ArrowUpRight className="w-8 h-8 text-orange-400" />
               </div>
               <h3 className="text-xl font-bold mb-2">Processing Withdrawal...</h3>
-              <p className="text-[#888]">Please confirm the transaction in your wallet</p>
+              <p className="text-[#888]">
+                {isPending ? 'Confirm in wallet...' : 'Waiting for confirmation...'}
+              </p>
             </div>
           )}
 
@@ -183,11 +205,11 @@ export function WithdrawModal({ isOpen, onClose, onSuccess, pool, userShare, use
           {step === 'success' && (
             <div className="text-center py-8">
               <div className="w-16 h-16 bg-[#22c55e] rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-3xl">✓</span>
+                <Check className="w-8 h-8 text-black" />
               </div>
               <h3 className="text-xl font-bold mb-2">Withdrawal Complete!</h3>
               <p className="text-[#888]">
-                {amount} {pool.deposit_token} has been sent to your wallet
+                {amount} {pool.depositTokenSymbol} has been sent to your wallet
               </p>
             </div>
           )}

@@ -1,8 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { createFundingRequest, Pool } from '../lib/supabase';
+import { useCreateRequest } from '../hooks/useContracts';
+import { RequestType } from '../lib/contracts';
+import { parseUnits } from 'viem';
+
+interface Pool {
+  address: string;
+  name: string;
+  deposit_token: string;
+  deposit_token_symbol: string;
+  deposit_token_decimals: number;
+  total_deposited: string;
+  voting_period: number;
+  quorum_bps: number;
+  approval_bps: number;
+  guardian_threshold_bps: number;
+}
 
 interface CreateRequestModalProps {
   isOpen: boolean;
@@ -13,67 +28,63 @@ interface CreateRequestModalProps {
 }
 
 export function CreateRequestModal({ isOpen, onClose, onSuccess, pool, requesterAddress }: CreateRequestModalProps) {
-  const [loading, setLoading] = useState(false);
+  const { createRequest, isPending, isConfirming, isSuccess, error } = useCreateRequest();
+  
   const [form, setForm] = useState({
     title: '',
     description: '',
     amount: '',
-    request_type: 'GRANT' as 'GRANT' | 'LOAN' | 'INVESTMENT',
+    request_type: RequestType.GRANT,
     reward_bps: 0,
     duration_days: 30,
   });
+
+  // Handle success
+  useEffect(() => {
+    if (isSuccess) {
+      onSuccess();
+      onClose();
+      setForm({
+        title: '',
+        description: '',
+        amount: '',
+        request_type: RequestType.GRANT,
+        reward_bps: 0,
+        duration_days: 30,
+      });
+    }
+  }, [isSuccess, onSuccess, onClose]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
 
-    try {
-      const votingEndsAt = new Date();
-      votingEndsAt.setHours(votingEndsAt.getHours() + pool.voting_period_hours);
+    const amountBigInt = parseUnits(form.amount, pool.deposit_token_decimals);
+    const durationSeconds = BigInt(form.duration_days * 24 * 60 * 60);
 
-      const request = await createFundingRequest({
-        pool_id: pool.id,
-        requester_address: requesterAddress,
-        title: form.title,
-        description: form.description,
-        amount: parseFloat(form.amount),
-        request_type: form.request_type,
-        reward_bps: form.reward_bps,
-        duration_days: form.duration_days,
-        collateral_amount: 0,
-        status: 'VOTING',
-        yes_votes: 0,
-        no_votes: 0,
-        guardian_approvals: 0,
-        voting_ends_at: votingEndsAt.toISOString(),
-      });
-
-      if (request) {
-        onSuccess();
-        onClose();
-        setForm({
-          title: '',
-          description: '',
-          amount: '',
-          request_type: 'GRANT',
-          reward_bps: 0,
-          duration_days: 30,
-        });
-      }
-    } catch (error) {
-      console.error('Error creating request:', error);
-    } finally {
-      setLoading(false);
-    }
+    createRequest(pool.address as `0x${string}`, {
+      title: form.title,
+      descriptionUri: form.description ? `data:text/plain,${encodeURIComponent(form.description)}` : '',
+      amount: amountBigInt,
+      requestType: form.request_type,
+      rewardBps: BigInt(form.reward_bps),
+      duration: durationSeconds,
+      collateralToken: '0x0000000000000000000000000000000000000000' as `0x${string}`,
+      collateralAmount: BigInt(0),
+    });
   };
+
+  const isLoading = isPending || isConfirming;
+  const votingPeriodHours = Math.floor(pool.voting_period / 3600);
+  const totalDeposited = parseFloat(pool.total_deposited);
+  const guardianThresholdAmount = totalDeposited * (pool.guardian_threshold_bps / 10000);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80">
       <div className="w-full max-w-md bg-[#0a0a0f] border-t border-[#222] rounded-t-3xl max-h-[90vh] overflow-y-auto animate-slide-up">
         {/* Header */}
-        <div className="sticky top-0 bg-[#0a0a0f] px-5 py-4 border-b border-[#222] flex items-center justify-between">
+        <div className="sticky top-0 bg-[#0a0a0f] px-5 py-4 border-b border-[#222] flex items-center justify-between z-10">
           <h2 className="text-lg font-semibold">Request Funding</h2>
           <button onClick={onClose} className="p-2 hover:bg-[#222] rounded-full">
             <X className="w-5 h-5" />
@@ -82,6 +93,13 @@ export function CreateRequestModal({ isOpen, onClose, onSuccess, pool, requester
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-5 space-y-5">
+          {/* Error display */}
+          {error && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+              {error.message || 'Transaction failed'}
+            </div>
+          )}
+
           {/* Title */}
           <div>
             <label className="block text-sm text-[#888] mb-2">Title</label>
@@ -111,7 +129,11 @@ export function CreateRequestModal({ isOpen, onClose, onSuccess, pool, requester
           <div>
             <label className="block text-sm text-[#888] mb-2">Request Type</label>
             <div className="flex gap-2">
-              {(['GRANT', 'LOAN', 'INVESTMENT'] as const).map((type) => (
+              {[
+                { type: RequestType.GRANT, label: 'GRANT' },
+                { type: RequestType.LOAN, label: 'LOAN' },
+                { type: RequestType.INVESTMENT, label: 'INVEST' },
+              ].map(({ type, label }) => (
                 <button
                   key={type}
                   type="button"
@@ -122,14 +144,14 @@ export function CreateRequestModal({ isOpen, onClose, onSuccess, pool, requester
                       : 'bg-[#111116] border border-[#222] text-white hover:border-[#444]'
                   }`}
                 >
-                  {type}
+                  {label}
                 </button>
               ))}
             </div>
             <p className="text-[#666] text-xs mt-2">
-              {form.request_type === 'GRANT' && 'No repayment required - for community contributions'}
-              {form.request_type === 'LOAN' && 'Requires collateral and repayment with interest'}
-              {form.request_type === 'INVESTMENT' && 'Pool invests for a share of returns'}
+              {form.request_type === RequestType.GRANT && 'No repayment required - for community contributions'}
+              {form.request_type === RequestType.LOAN && 'Requires collateral and repayment with interest'}
+              {form.request_type === RequestType.INVESTMENT && 'Pool invests for a share of returns'}
             </p>
           </div>
 
@@ -144,15 +166,15 @@ export function CreateRequestModal({ isOpen, onClose, onSuccess, pool, requester
                 placeholder="10000"
                 className="w-full bg-[#111116] border border-[#222] rounded-xl px-4 py-3 pr-16 focus:outline-none focus:border-[#22c55e]"
                 min={0}
-                step={pool.deposit_token === 'ETH' ? 0.01 : 1}
+                step={0.01}
                 required
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#888]">
-                {pool.deposit_token}
+                {pool.deposit_token_symbol}
               </span>
             </div>
             <p className="text-[#666] text-xs mt-1">
-              Pool has {pool.total_deposited.toLocaleString()} {pool.deposit_token} available
+              Pool has {totalDeposited.toLocaleString()} {pool.deposit_token_symbol} available
             </p>
           </div>
 
@@ -170,7 +192,7 @@ export function CreateRequestModal({ isOpen, onClose, onSuccess, pool, requester
           </div>
 
           {/* Expected Return (for LOAN/INVESTMENT) */}
-          {form.request_type !== 'GRANT' && (
+          {form.request_type !== RequestType.GRANT && (
             <div>
               <label className="block text-sm text-[#888] mb-2">Expected Return (%)</label>
               <div className="relative">
@@ -193,10 +215,10 @@ export function CreateRequestModal({ isOpen, onClose, onSuccess, pool, requester
           <div className="bg-[#111116] border border-[#222] rounded-xl p-4">
             <p className="text-sm text-[#888]">
               <strong className="text-white">Voting Rules:</strong><br/>
-              • {pool.voting_period_hours}h voting period<br/>
-              • {pool.quorum_percent}% quorum required<br/>
-              • {pool.approval_threshold_percent}% approval to pass
-              {parseFloat(form.amount) > pool.total_deposited * (pool.guardian_threshold_percent / 100) && (
+              • {votingPeriodHours}h voting period<br/>
+              • {pool.quorum_bps / 100}% quorum required<br/>
+              • {pool.approval_bps / 100}% approval to pass
+              {parseFloat(form.amount || '0') > guardianThresholdAmount && (
                 <><br/>• ⚠️ Requires guardian approval (large request)</>
               )}
             </p>
@@ -205,10 +227,10 @@ export function CreateRequestModal({ isOpen, onClose, onSuccess, pool, requester
           {/* Submit */}
           <button
             type="submit"
-            disabled={loading || !form.title || !form.amount}
+            disabled={isLoading || !form.title || !form.amount}
             className="w-full bg-[#22c55e] text-black font-semibold py-4 rounded-xl hover:bg-[#16a34a] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
-            {loading ? 'Submitting...' : 'Submit Request'}
+            {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Creating...' : 'Submit Request'}
           </button>
         </form>
       </div>

@@ -2,15 +2,27 @@
 
 import { useEffect, useState } from 'react';
 import { ArrowRight, Users, Coins, Vote, TrendingUp } from 'lucide-react';
+import { getGlobalStats } from './lib/supabase';
 
 export default function HomePage() {
   const [scrollY, setScrollY] = useState(0);
+  const [stats, setStats] = useState({ totalPools: 0, totalValueLocked: 0, totalMembers: 0 });
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    getGlobalStats().then(setStats);
+  }, []);
+
+  const formatNumber = (n: number) => {
+    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+    return n.toString();
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
@@ -77,18 +89,24 @@ export default function HomePage() {
             </a>
           </div>
 
-          {/* Stats */}
+          {/* Stats - fetched from Supabase */}
           <div className="mt-12 grid grid-cols-3 gap-4 max-w-md mx-auto">
             <div className="text-center">
-              <div className="text-xl md:text-2xl font-bold font-mono text-emerald-400">$0</div>
+              <div className="text-xl md:text-2xl font-bold font-mono text-emerald-400">
+                ${formatNumber(stats.totalValueLocked)}
+              </div>
               <div className="text-[10px] text-gray-500 uppercase tracking-wider">TVL</div>
             </div>
             <div className="text-center">
-              <div className="text-xl md:text-2xl font-bold font-mono text-emerald-400">0</div>
+              <div className="text-xl md:text-2xl font-bold font-mono text-emerald-400">
+                {stats.totalPools}
+              </div>
               <div className="text-[10px] text-gray-500 uppercase tracking-wider">Pools</div>
             </div>
             <div className="text-center">
-              <div className="text-xl md:text-2xl font-bold font-mono text-emerald-400">0</div>
+              <div className="text-xl md:text-2xl font-bold font-mono text-emerald-400">
+                {stats.totalMembers}
+              </div>
               <div className="text-[10px] text-gray-500 uppercase tracking-wider">Members</div>
             </div>
           </div>
@@ -227,9 +245,8 @@ export default function HomePage() {
           </a>
           
           <div className="mt-10 flex flex-wrap justify-center gap-6 text-xs text-gray-600">
-            <a href="https://warpcast.com" className="hover:text-white transition-colors">Farcaster</a>
-            <a href="https://github.com" className="hover:text-white transition-colors">GitHub</a>
-            <a href="https://twitter.com" className="hover:text-white transition-colors">Twitter</a>
+            <a href="https://github.com/bhavyaalt/peer-credit-circles" className="hover:text-white transition-colors">GitHub</a>
+            <a href="https://twitter.com/bhavyagor12" className="hover:text-white transition-colors">Twitter</a>
           </div>
         </div>
       </section>
@@ -237,7 +254,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="py-6 px-5 border-t border-[#222]">
         <div className="max-w-3xl mx-auto text-center text-xs text-gray-600">
-          <p>© 2025 Peer Credit Circles. Built for friends, by friends.</p>
+          <p>© 2025 Peer Credit Circles. Built on Base.</p>
         </div>
       </footer>
     </div>

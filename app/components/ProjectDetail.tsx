@@ -175,7 +175,7 @@ export function ProjectDetail({ project, onBack, onFundWithPool }: ProjectDetail
                     <Users className="w-5 h-5 text-[#22c55e]" />
                   </div>
                   <div>
-                    <p className="font-medium">{contrib.pool_name || `Pool ${contrib.pool_id.slice(0, 6)}`}</p>
+                    <p className="font-medium">{contrib.pool_name || `Pool ${contrib.pool_address.slice(0, 6)}`}</p>
                     <p className="text-xs text-[#888]">
                       {contrib.status === 'FUNDED' && '✓ Funded'}
                       {contrib.status === 'VOTING' && '🗳️ Voting in progress'}

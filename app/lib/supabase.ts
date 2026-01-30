@@ -343,6 +343,116 @@ export async function getGlobalStats(): Promise<{
   }
 }
 
+// ============ PROJECT FUNCTIONS (for future use) ============
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  creator_address: string;
+  creator_name?: string;
+  target_amount: number;
+  raised_amount: number;
+  currency: string;
+  category: 'STARTUP' | 'CREATOR' | 'COMMUNITY' | 'DEFI' | 'NFT' | 'OTHER';
+  status: 'FUNDING' | 'FUNDED' | 'CANCELLED' | 'COMPLETED';
+  deadline: string;
+  image_url?: string;
+  website_url?: string;
+  twitter_url?: string;
+  created_at: string;
+}
+
+export interface ProjectContribution {
+  id: string;
+  project_id: string;
+  pool_id: string;
+  pool_name?: string;
+  amount: number;
+  status: 'VOTING' | 'APPROVED' | 'REJECTED' | 'FUNDED';
+  voted_at?: string;
+  funded_at?: string;
+  created_at: string;
+}
+
+export async function getProjects(): Promise<Project[]> {
+  // Projects feature - placeholder for now
+  return [];
+}
+
+export async function getProject(id: string): Promise<Project | null> {
+  return null;
+}
+
+export async function createProject(project: Partial<Project>): Promise<Project | null> {
+  return null;
+}
+
+export async function getProjectContributions(projectId: string): Promise<ProjectContribution[]> {
+  return [];
+}
+
+export async function createContribution(contribution: Partial<ProjectContribution>): Promise<ProjectContribution | null> {
+  return null;
+}
+
+// ============ FUNDING REQUEST FUNCTIONS (legacy) ============
+
+export interface LegacyFundingRequest {
+  id: string;
+  pool_id: string;
+  requester_address: string;
+  title: string;
+  description?: string;
+  amount: number;
+  request_type: 'GRANT' | 'LOAN' | 'INVESTMENT';
+  reward_bps: number;
+  duration_days?: number;
+  collateral_token?: string;
+  collateral_amount: number;
+  status: 'VOTING' | 'APPROVED' | 'REJECTED' | 'FUNDED' | 'COMPLETED' | 'DEFAULTED';
+  yes_votes: number;
+  no_votes: number;
+  guardian_approvals: number;
+  voting_ends_at: string;
+  funded_at?: string;
+  created_at: string;
+}
+
+export async function getFundingRequests(poolId?: string): Promise<LegacyFundingRequest[]> {
+  // Convert from new format
+  const requests = poolId ? await getPoolRequests(poolId) : await getActiveRequests();
+  return requests.map(r => ({
+    id: r.id || String(r.onchain_id),
+    pool_id: r.pool_address,
+    requester_address: r.requester_address,
+    title: r.title,
+    amount: parseFloat(r.amount),
+    request_type: r.request_type,
+    reward_bps: r.reward_bps,
+    duration_days: r.duration / 86400,
+    collateral_token: r.collateral_token,
+    collateral_amount: parseFloat(r.collateral_amount),
+    status: r.status as any,
+    yes_votes: parseFloat(r.yes_votes),
+    no_votes: parseFloat(r.no_votes),
+    guardian_approvals: 0,
+    voting_ends_at: r.voting_ends_at,
+    funded_at: r.funded_at,
+    created_at: r.created_at || new Date().toISOString(),
+  }));
+}
+
+export async function createFundingRequest(request: Partial<LegacyFundingRequest>): Promise<LegacyFundingRequest | null> {
+  // This should go through the contract now
+  return null;
+}
+
+export async function castVote(requestId: string, voterAddress: string, support: boolean, votePower: number): Promise<any> {
+  // This should go through the contract now
+  return null;
+}
+
 // ============ LEGACY COMPATIBILITY ============
 // These functions maintain compatibility with old code
 
@@ -361,6 +471,39 @@ export interface LegacyPool {
   is_open: boolean;
   created_at: string;
 }
+
+// Re-export Pool as alias for compatibility
+export type { Pool };
+
+export interface PoolMember {
+  id: string;
+  pool_id: string;
+  wallet_address: string;
+  display_name?: string;
+  avatar_url?: string;
+  deposited_amount: number;
+  share_tokens: number;
+  is_guardian: boolean;
+  is_active: boolean;
+  joined_at: string;
+}
+
+export async function getPoolMembersLegacy(poolId: string): Promise<PoolMember[]> {
+  const members = await getPoolMembers(poolId);
+  return members.map(m => ({
+    id: m.id || m.address,
+    pool_id: m.pool_address,
+    wallet_address: m.address,
+    deposited_amount: parseFloat(m.shares),
+    share_tokens: parseFloat(m.shares),
+    is_guardian: m.is_guardian,
+    is_active: m.is_active,
+    joined_at: m.joined_at,
+  }));
+}
+
+// Alias for backwards compatibility
+export { getPoolMembersLegacy as getPoolMembersCompat };
 
 export function poolToLegacy(pool: Pool): LegacyPool {
   return {

@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "indexer": "npx tsx indexer/run.ts",
+    "indexer:once": "npx tsx -e \"require('./indexer/index').runIndexer(true)\""
   },
   "dependencies": {
     "@farcaster/miniapp-sdk": "^0.1.8",

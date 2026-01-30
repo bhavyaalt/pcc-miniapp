@@ -366,7 +366,7 @@ export interface Project {
 export interface ProjectContribution {
   id: string;
   project_id: string;
-  pool_id: string;
+  pool_address: string;
   pool_name?: string;
   amount: number;
   status: 'VOTING' | 'APPROVED' | 'REJECTED' | 'FUNDED';

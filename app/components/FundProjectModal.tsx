@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { X, Users, ChevronRight, Check } from 'lucide-react';
-import { Pool, Project, getUserPools, createContribution } from '../lib/supabase';
+import { Pool, Project, createContribution } from '../lib/supabase';
 
 interface FundProjectModalProps {
   isOpen: boolean;
@@ -22,10 +22,11 @@ export function FundProjectModal({ isOpen, onClose, onSuccess, project, userAddr
 
   if (!isOpen) return null;
 
-  const formatMoney = (n: number) => {
-    if (n >= 1000000) return `$${(n / 1000000).toFixed(1)}M`;
-    if (n >= 1000) return `$${(n / 1000).toFixed(0)}k`;
-    return `$${n}`;
+  const formatMoney = (n: number | string) => {
+    const num = typeof n === 'string' ? parseFloat(n) : n;
+    if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `$${(num / 1000).toFixed(0)}k`;
+    return `$${num}`;
   };
 
   const remainingAmount = project.target_amount - project.raised_amount;
@@ -50,7 +51,7 @@ export function FundProjectModal({ isOpen, onClose, onSuccess, project, userAddr
     try {
       const contribution = await createContribution({
         project_id: project.id,
-        pool_id: selectedPool.id,
+        pool_address: selectedPool.address,
         pool_name: selectedPool.name,
         amount: parseFloat(amount),
         status: 'VOTING',
@@ -77,6 +78,10 @@ export function FundProjectModal({ isOpen, onClose, onSuccess, project, userAddr
       setStep('select-pool');
       setSelectedPool(null);
     }
+  };
+
+  const getPoolBalance = (pool: Pool) => {
+    return parseFloat(pool.total_deposited);
   };
 
   return (
@@ -136,7 +141,7 @@ export function FundProjectModal({ isOpen, onClose, onSuccess, project, userAddr
                 <div className="space-y-3">
                   {userPools.map((pool) => (
                     <button
-                      key={pool.id}
+                      key={pool.address}
                       onClick={() => handleSelectPool(pool)}
                       className="w-full bg-[#111116] border border-[#222] rounded-xl p-4 flex items-center justify-between hover:border-[#444] transition-all"
                     >
@@ -147,7 +152,7 @@ export function FundProjectModal({ isOpen, onClose, onSuccess, project, userAddr
                         <div className="text-left">
                           <p className="font-medium">{pool.name}</p>
                           <p className="text-[#888] text-sm">
-                            {formatMoney(pool.total_deposited)} {pool.deposit_token}
+                            {formatMoney(pool.total_deposited)} {pool.deposit_token_symbol}
                           </p>
                         </div>
                       </div>
@@ -176,11 +181,11 @@ export function FundProjectModal({ isOpen, onClose, onSuccess, project, userAddr
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="0"
                     className="w-full bg-[#111116] border border-[#222] rounded-xl pl-10 pr-4 py-4 text-3xl font-bold text-white placeholder-[#444] focus:border-[#22c55e] focus:outline-none text-center"
-                    max={Math.min(selectedPool.total_deposited, remainingAmount)}
+                    max={Math.min(getPoolBalance(selectedPool), remainingAmount)}
                   />
                 </div>
                 <p className="text-center text-[#888] text-sm mt-2">
-                  Pool balance: {formatMoney(selectedPool.total_deposited)} {selectedPool.deposit_token}
+                  Pool balance: {formatMoney(selectedPool.total_deposited)} {selectedPool.deposit_token_symbol}
                 </p>
               </div>
 

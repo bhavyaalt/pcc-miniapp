@@ -1,8 +1,8 @@
 'use client';
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, Badge, Progress } from './ui';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, Badge } from './ui';
 import { Pool } from '@/app/lib/supabase';
-import { formatAmount, formatAddress } from '@/app/lib/utils';
+import { formatAmount } from '@/app/lib/utils';
 import { Users, Coins, FileText, ChevronRight } from 'lucide-react';
 
 interface PoolCardProps {

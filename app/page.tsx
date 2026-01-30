@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Button, Card, CardContent, Badge, Tabs, TabsList, TabsTrigger, TabsContent } from './components/ui';
+import { Button, Card, Badge, Tabs, TabsList, TabsTrigger, TabsContent } from './components/ui';
 import { PoolCard } from './components/PoolCard';
 import { CreatePoolForm } from './components/CreatePoolForm';
 import { getPools, Pool } from './lib/supabase';

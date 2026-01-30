@@ -1,441 +1,245 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useAccount } from 'wagmi';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Plus, LayoutGrid, Info, Users, CheckSquare, ChevronRight, TrendingUp, Settings } from 'lucide-react';
-import { getPools, getActiveRequests, Pool, FundingRequest, getUserShare } from './lib/supabase';
-import { CreatePoolModal } from './components/CreatePoolModal';
-import { PoolDetail } from './components/PoolDetail';
-import { CreateRequestModal } from './components/CreateRequestModal';
-import { VoteModal } from './components/VoteModal';
+import { useEffect, useState } from 'react';
+import { ArrowRight, Users, Coins, Vote, TrendingUp } from 'lucide-react';
 
-type View = 'home' | 'pool-detail' | 'my-pools' | 'activity' | 'settings';
-
-export default function Home() {
-  const { address, isConnected } = useAccount();
-  
-  // State
-  const [view, setView] = useState<View>('home');
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [pools, setPools] = useState<Pool[]>([]);
-  const [activeRequests, setActiveRequests] = useState<FundingRequest[]>([]);
-  const [selectedPool, setSelectedPool] = useState<Pool | null>(null);
-  const [userShares, setUserShares] = useState<Record<string, { amount: number; percent: number }>>({});
-  const [loading, setLoading] = useState(true);
-  
-  // Modals
-  const [showCreatePool, setShowCreatePool] = useState(false);
-  const [showCreateRequest, setShowCreateRequest] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<FundingRequest | null>(null);
-
-  // Load data
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [poolsData, requestsData] = await Promise.all([
-        getPools(),
-        getActiveRequests(),
-      ]);
-      setPools(poolsData);
-      setActiveRequests(requestsData);
-
-      // Load user shares for each pool
-      if (address) {
-        const shares: Record<string, { amount: number; percent: number }> = {};
-        for (const pool of poolsData) {
-          const share = await getUserShare(pool.id, address);
-          if (share) shares[pool.id] = share;
-        }
-        setUserShares(shares);
-      }
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [address]);
+export default function HomePage() {
+  const [scrollY, setScrollY] = useState(0);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // Calculations
-  const totalPooledValue = pools.reduce((sum, p) => {
-    if (p.deposit_token === 'ETH') return sum + p.total_deposited * 2500;
-    return sum + p.total_deposited;
-  }, 0);
-
-  const userTotalValue = Object.entries(userShares).reduce((sum, [poolId, share]) => {
-    const pool = pools.find(p => p.id === poolId);
-    if (!pool) return sum;
-    if (pool.deposit_token === 'ETH') return sum + share.amount * 2500;
-    return sum + share.amount;
-  }, 0);
-
-  const formatMoney = (n: number) => n.toLocaleString();
-
-  // Pool detail view
-  if (view === 'pool-detail' && selectedPool) {
-    return (
-      <>
-        <PoolDetail
-          pool={selectedPool}
-          userAddress={address}
-          userShare={userShares[selectedPool.id]}
-          onBack={() => {
-            setView('home');
-            setSelectedPool(null);
-          }}
-          onCreateRequest={() => setShowCreateRequest(true)}
-        />
-        {showCreateRequest && address && (
-          <CreateRequestModal
-            isOpen={showCreateRequest}
-            onClose={() => setShowCreateRequest(false)}
-            onSuccess={loadData}
-            pool={selectedPool}
-            requesterAddress={address}
-          />
-        )}
-      </>
-    );
-  }
+    const handleScroll = () => setScrollY(window.scrollY);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
-    <main className="min-h-screen bg-[#0a0a0f] text-white pb-24">
-      {/* Header */}
-      <header className="px-5 pt-6 pb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[#22c55e] flex items-center justify-center">
-            <span className="text-black font-bold text-sm">cb</span>
+    <div className="min-h-screen bg-[#0a0a0f] text-white">
+      {/* Nav */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0f]/80 backdrop-blur-md border-b border-[#222]">
+        <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center">
+              <span className="text-black font-bold text-sm">P</span>
+            </div>
+            <span className="font-semibold text-sm">PCC</span>
           </div>
-          <span className="font-semibold text-lg">PCC</span>
+          <a 
+            href="/dashboard"
+            className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 rounded-md font-medium text-xs text-black transition-all inline-flex items-center gap-1.5"
+          >
+            Launch App <ArrowRight className="w-3 h-3" />
+          </a>
         </div>
-        
-        <ConnectButton.Custom>
-          {({ account, openConnectModal, openAccountModal, mounted }) => {
-            const connected = mounted && account;
-            return connected ? (
-              <button 
-                onClick={openAccountModal}
-                className="flex items-center gap-2 bg-[#1a1a1f] rounded-full pl-3 pr-2 py-1.5"
-              >
-                <span className="text-sm">{account.displayName}</span>
-                <div className="w-6 h-6 rounded-full bg-[#333] flex items-center justify-center">
-                  <span className="text-xs">👤</span>
-                </div>
-              </button>
-            ) : (
-              <button 
-                onClick={openConnectModal}
-                className="bg-[#22c55e] text-black rounded-full px-4 py-1.5 text-sm font-medium"
-              >
-                Connect
-              </button>
-            );
-          }}
-        </ConnectButton.Custom>
-      </header>
+      </nav>
 
-      {/* Hero Stat */}
-      <section className="px-5 py-6 text-center">
-        <p className="text-[#666] text-xs tracking-wider mb-2">TOTAL POOLED VALUE</p>
-        <h1 className="text-5xl font-bold mb-2">
-          {formatMoney(Math.round(totalPooledValue))}
-          <span className="text-[#22c55e] text-3xl">$</span>
-        </h1>
-        {isConnected && userTotalValue > 0 && (
-          <p className="text-[#22c55e] text-sm">
-            <TrendingUp className="w-3 h-3 inline mr-1" />
-            Your share: {formatMoney(Math.round(userTotalValue))}$
+      {/* Hero */}
+      <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden pt-14">
+        <div 
+          className="absolute inset-0 opacity-30"
+          style={{
+            background: 'radial-gradient(circle at 50% 40%, #22c55e 0%, transparent 50%)',
+            transform: `translateY(${scrollY * 0.3}px)`,
+          }}
+        />
+        
+        <div className="relative z-10 max-w-3xl mx-auto px-5 text-center">
+          <div className="mb-4">
+            <span className="inline-block px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium border border-emerald-500/20 font-mono">
+              onchain collective investing
+            </span>
+          </div>
+          
+          <h1 className="text-4xl md:text-6xl font-bold mb-4 leading-tight tracking-tight">
+            Your Friends.
+            <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-500">
+              Your Fund.
+            </span>
+          </h1>
+          
+          <p className="text-base md:text-lg text-gray-400 mb-8 max-w-xl mx-auto">
+            Pool money with people you trust. Invest in what you believe in. 
+            No VCs. No gatekeepers. Just you and your crew.
           </p>
-        )}
+          
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <a 
+              href="/dashboard"
+              className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 rounded-lg font-semibold text-sm text-black transition-all hover:scale-105 inline-flex items-center justify-center gap-2"
+            >
+              Launch App <ArrowRight className="w-4 h-4" />
+            </a>
+            <a 
+              href="#how"
+              className="px-6 py-3 bg-[#111116] hover:bg-[#1a1a1f] rounded-lg font-medium text-sm transition-all border border-[#222]"
+            >
+              How It Works
+            </a>
+          </div>
+
+          {/* Stats */}
+          <div className="mt-12 grid grid-cols-3 gap-4 max-w-md mx-auto">
+            <div className="text-center">
+              <div className="text-xl md:text-2xl font-bold font-mono text-emerald-400">$0</div>
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">TVL</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl md:text-2xl font-bold font-mono text-emerald-400">0</div>
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Pools</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl md:text-2xl font-bold font-mono text-emerald-400">0</div>
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Members</div>
+            </div>
+          </div>
+        </div>
       </section>
 
-      {/* Tabs */}
-      <nav className="px-5 mb-6">
-        <div className="flex gap-1 overflow-x-auto">
-          {['Dashboard', 'My Pools', 'Activity', 'Settings'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab.toLowerCase().replace(' ', '-'))}
-              className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-all ${
-                activeTab === tab.toLowerCase().replace(' ', '-')
-                  ? 'bg-white text-black font-medium'
-                  : 'text-[#888] hover:text-white'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-      </nav>
-
-      {/* Content based on active tab */}
-      {activeTab === 'dashboard' && (
-        <>
-          {/* Action Required */}
-          {activeRequests.length > 0 && (
-            <section className="px-5 mb-6">
-              <p className="text-[#666] text-xs tracking-wider mb-3">ACTION REQUIRED</p>
-              {activeRequests.slice(0, 1).map((request) => {
-                const pool = pools.find(p => p.id === request.pool_id);
-                const totalVotes = request.yes_votes + request.no_votes;
-                const approvalPercent = totalVotes > 0 ? (request.yes_votes / totalVotes) * 100 : 0;
-                const timeLeft = getTimeLeft(request.voting_ends_at);
-                
-                return (
-                  <button
-                    key={request.id}
-                    onClick={() => setSelectedRequest(request)}
-                    className="w-full bg-gradient-to-br from-[#22c55e] to-[#16a34a] rounded-2xl p-5 relative overflow-hidden text-left"
-                  >
-                    <div className="absolute inset-0 opacity-10">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-3xl" />
-                    </div>
-                    
-                    <div className="relative">
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="bg-black/20 text-white text-xs font-medium px-3 py-1 rounded-full">
-                          VOTE ENDING SOON
-                        </span>
-                        <ChevronRight className="w-5 h-5 text-white/80" />
-                      </div>
-                      
-                      <p className="text-white/80 text-sm mb-1">Funding Request #{request.id.slice(-3)}</p>
-                      <p className="text-4xl font-bold text-white mb-4">
-                        {formatMoney(request.amount)}
-                        <span className="text-2xl">{pool?.deposit_token === 'ETH' ? 'Ξ' : '$'}</span>
-                      </p>
-                      
-                      <div className="h-1.5 bg-black/20 rounded-full mb-2">
-                        <div 
-                          className="h-full bg-white rounded-full transition-all"
-                          style={{ width: `${approvalPercent}%` }}
-                        />
-                      </div>
-                      
-                      <div className="flex justify-between text-sm">
-                        <span className="text-white font-medium">{approvalPercent.toFixed(0)}% Approved</span>
-                        <span className="text-white/70">{timeLeft}</span>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </section>
-          )}
-
-          {/* Active Pools */}
-          <section className="px-5">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[#666] text-xs tracking-wider">ACTIVE POOLS</p>
-              <ChevronRight className="w-4 h-4 text-[#666]" />
-            </div>
-            
-            {loading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="bg-[#111116] border border-[#222] rounded-2xl p-4 h-24 animate-pulse" />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {pools.map((pool) => {
-                  const userShare = userShares[pool.id];
-                  const sharePercent = userShare?.percent || 0;
-                  
-                  return (
-                    <button
-                      key={pool.id}
-                      onClick={() => {
-                        setSelectedPool(pool);
-                        setView('pool-detail');
-                      }}
-                      className="w-full bg-[#111116] border border-[#222] rounded-2xl p-4 flex items-center justify-between text-left hover:border-[#333] transition-all"
-                    >
-                      <div>
-                        <h3 className="font-semibold mb-1">{pool.name}</h3>
-                        <p className="text-[#666] text-xs mb-1">
-                          {userShare ? 'Your Share' : 'Total Pooled'}
-                        </p>
-                        <p className="text-2xl font-bold">
-                          {formatMoney(userShare?.amount || pool.total_deposited)}
-                          <span className="text-[#22c55e] text-lg ml-1">
-                            {pool.deposit_token === 'ETH' ? 'Ξ' : '$'}
-                          </span>
-                        </p>
-                      </div>
-                      
-                      <div className="text-right">
-                        <span className="text-[#666] text-sm">{pool.deposit_token}</span>
-                        <div className="mt-2">
-                          {sharePercent >= 50 ? (
-                            <span className="text-[#22c55e] font-semibold text-lg">{sharePercent.toFixed(0)}%</span>
-                          ) : sharePercent > 0 ? (
-                            <span className="text-[#888] font-medium">{sharePercent.toFixed(0)}%</span>
-                          ) : (
-                            <ChevronRight className="w-5 h-5 text-[#666] ml-auto" />
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        </>
-      )}
-
-      {activeTab === 'my-pools' && (
-        <section className="px-5">
-          <p className="text-[#666] text-xs tracking-wider mb-4">YOUR POOLS</p>
-          {!isConnected ? (
-            <div className="text-center py-12">
-              <p className="text-[#888] mb-4">Connect wallet to see your pools</p>
-              <ConnectButton />
-            </div>
-          ) : Object.keys(userShares).length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-[#888] mb-4">You haven&apos;t joined any pools yet</p>
-              <button
-                onClick={() => setActiveTab('dashboard')}
-                className="bg-[#22c55e] text-black font-semibold px-6 py-3 rounded-xl"
-              >
-                Browse Pools
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {pools.filter(p => userShares[p.id]).map((pool) => (
-                <button
-                  key={pool.id}
-                  onClick={() => {
-                    setSelectedPool(pool);
-                    setView('pool-detail');
-                  }}
-                  className="w-full bg-[#111116] border border-[#222] rounded-2xl p-4 text-left hover:border-[#333]"
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-semibold">{pool.name}</h3>
-                      <p className="text-[#666] text-sm">{pool.deposit_token}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xl font-bold">{formatMoney(userShares[pool.id].amount)}</p>
-                      <p className="text-[#22c55e] text-sm">{userShares[pool.id].percent.toFixed(1)}%</p>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      {activeTab === 'activity' && (
-        <section className="px-5">
-          <p className="text-[#666] text-xs tracking-wider mb-4">RECENT ACTIVITY</p>
-          <div className="text-center py-12 text-[#888]">
-            Activity feed coming soon...
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'settings' && (
-        <section className="px-5">
-          <p className="text-[#666] text-xs tracking-wider mb-4">SETTINGS</p>
-          <div className="space-y-3">
-            <div className="bg-[#111116] border border-[#222] rounded-2xl p-4">
-              <p className="font-medium mb-1">Connected Wallet</p>
-              <p className="text-[#888] font-mono text-sm">
-                {address ? `${address.slice(0, 10)}...${address.slice(-8)}` : 'Not connected'}
+      {/* The Problem */}
+      <section className="py-16 px-5 bg-[#111116]">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-xl md:text-2xl font-bold mb-8 text-center">
+            The Old Way is Broken
+          </h2>
+          
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/10">
+              <div className="text-2xl mb-2">🏦</div>
+              <h3 className="text-sm font-semibold mb-1 text-red-400">Banks Don&apos;t Get It</h3>
+              <p className="text-xs text-gray-500">
+                Try telling your bank you want to pool money with friends to angel invest.
               </p>
             </div>
-            <div className="bg-[#111116] border border-[#222] rounded-2xl p-4">
-              <p className="font-medium mb-1">Network</p>
-              <p className="text-[#888] text-sm">Base</p>
+            
+            <div className="p-4 rounded-xl bg-orange-500/5 border border-orange-500/10">
+              <div className="text-2xl mb-2">📋</div>
+              <h3 className="text-sm font-semibold mb-1 text-orange-400">Legal Hell</h3>
+              <p className="text-xs text-gray-500">
+                LLCs, operating agreements, cap tables... $10k+ before investing $1.
+              </p>
+            </div>
+            
+            <div className="p-4 rounded-xl bg-yellow-500/5 border border-yellow-500/10">
+              <div className="text-2xl mb-2">🔒</div>
+              <h3 className="text-sm font-semibold mb-1 text-yellow-400">Trust Issues</h3>
+              <p className="text-xs text-gray-500">
+                Venmo your buddy $5k and hope he actually invests it?
+              </p>
             </div>
           </div>
-        </section>
-      )}
-
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0f]/95 backdrop-blur-lg border-t border-[#222] px-6 py-4">
-        <div className="flex items-center justify-around">
-          <button 
-            onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-col items-center gap-1 ${activeTab === 'dashboard' ? 'text-white' : 'text-[#666]'}`}
-          >
-            <LayoutGrid className="w-5 h-5" />
-          </button>
-          <button 
-            onClick={() => setActiveTab('my-pools')}
-            className={`flex flex-col items-center gap-1 ${activeTab === 'my-pools' ? 'text-white' : 'text-[#666]'}`}
-          >
-            <Info className="w-5 h-5" />
-          </button>
-          
-          {/* Center FAB */}
-          <button 
-            onClick={() => setShowCreatePool(true)}
-            className="w-12 h-12 bg-[#22c55e] rounded-full flex items-center justify-center -mt-6 shadow-lg shadow-[#22c55e]/30"
-          >
-            <Plus className="w-6 h-6 text-black" />
-          </button>
-          
-          <button 
-            onClick={() => setActiveTab('activity')}
-            className={`flex flex-col items-center gap-1 ${activeTab === 'activity' ? 'text-white' : 'text-[#666]'}`}
-          >
-            <Users className="w-5 h-5" />
-          </button>
-          <button 
-            onClick={() => setActiveTab('settings')}
-            className={`flex flex-col items-center gap-1 ${activeTab === 'settings' ? 'text-white' : 'text-[#666]'}`}
-          >
-            <Settings className="w-5 h-5" />
-          </button>
         </div>
-      </nav>
+      </section>
 
-      {/* Modals */}
-      {showCreatePool && address && (
-        <CreatePoolModal
-          isOpen={showCreatePool}
-          onClose={() => setShowCreatePool(false)}
-          onSuccess={loadData}
-          adminAddress={address}
-        />
-      )}
+      {/* How It Works */}
+      <section id="how" className="py-16 px-5">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-xl md:text-2xl font-bold mb-2">
+              How It Works
+            </h2>
+            <p className="text-sm text-gray-400">
+              Trusted groups. Transparent funds. Onchain accountability.
+            </p>
+          </div>
+          
+          <div className="space-y-6">
+            {[
+              { num: 1, icon: Users, title: 'Create Your Circle', desc: 'Start a pool with friends, family, or your Discord crew. Set the rules: minimum deposit, voting thresholds, who can propose.' },
+              { num: 2, icon: Coins, title: 'Pool Your Capital', desc: 'Everyone deposits USDC. You get share tokens representing your stake. Funds held in smart contract — no single person controls them.' },
+              { num: 3, icon: Vote, title: 'Propose & Vote', desc: 'Anyone can propose: "Let\'s put $10k into this startup." Members vote with their shares. Majority wins.' },
+              { num: 4, icon: TrendingUp, title: 'Invest Together', desc: 'Approved proposals execute automatically. Returns flow back to the pool. Everyone wins (or loses) together.' },
+            ].map(({ num, icon: Icon, title, desc }) => (
+              <div key={num} className="flex gap-4 items-start">
+                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center">
+                  <Icon className="w-5 h-5 text-black" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold mb-1">{title}</h3>
+                  <p className="text-xs text-gray-400">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-      {selectedRequest && selectedPool && address && userShares[selectedPool.id] && (
-        <VoteModal
-          isOpen={!!selectedRequest}
-          onClose={() => setSelectedRequest(null)}
-          onSuccess={loadData}
-          request={selectedRequest}
-          token={selectedPool.deposit_token}
-          voterAddress={address}
-          votePower={userShares[selectedPool.id].amount}
-        />
-      )}
-    </main>
+      {/* Use Cases */}
+      <section className="py-16 px-5 bg-[#111116]">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-xl md:text-2xl font-bold mb-2 text-center">
+            What Can You Build?
+          </h2>
+          <p className="text-sm text-gray-400 text-center mb-10">
+            PCC is a primitive. Build whatever you want on top.
+          </p>
+          
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="p-5 rounded-xl bg-gradient-to-br from-emerald-900/20 to-green-900/20 border border-emerald-500/10">
+              <div className="text-2xl mb-2">👼</div>
+              <h3 className="text-sm font-semibold mb-2">Angel Syndicates</h3>
+              <p className="text-xs text-gray-400">
+                5 friends pool $50k each = $250k angel fund. Invest in startups together, share the upside.
+              </p>
+            </div>
+            
+            <div className="p-5 rounded-xl bg-gradient-to-br from-blue-900/20 to-cyan-900/20 border border-blue-500/10">
+              <div className="text-2xl mb-2">🏠</div>
+              <h3 className="text-sm font-semibold mb-2">Group Savings</h3>
+              <p className="text-xs text-gray-400">
+                Family emergency fund. Roommates saving for a trip. Community chest for local projects.
+              </p>
+            </div>
+            
+            <div className="p-5 rounded-xl bg-gradient-to-br from-purple-900/20 to-pink-900/20 border border-purple-500/10">
+              <div className="text-2xl mb-2">🎨</div>
+              <h3 className="text-sm font-semibold mb-2">Creator Collectives</h3>
+              <p className="text-xs text-gray-400">
+                10 creators pool funds to invest in each other&apos;s projects. Vote on grants. Share success.
+              </p>
+            </div>
+            
+            <div className="p-5 rounded-xl bg-gradient-to-br from-orange-900/20 to-amber-900/20 border border-orange-500/10">
+              <div className="text-2xl mb-2">🌍</div>
+              <h3 className="text-sm font-semibold mb-2">DAO Treasury Lite</h3>
+              <p className="text-xs text-gray-400">
+                Your Discord needs a treasury but full DAO tooling is overkill? PCC = votes + proposals + funds in one click.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-16 px-5">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-2xl md:text-3xl font-bold mb-3">
+            Ready to Build Your Circle?
+          </h2>
+          <p className="text-sm text-gray-400 mb-8">
+            Start with friends. Scale to a movement.
+          </p>
+          
+          <a 
+            href="/dashboard"
+            className="inline-flex items-center gap-2 px-8 py-3 bg-emerald-500 hover:bg-emerald-400 rounded-lg font-semibold text-sm text-black transition-all hover:scale-105"
+          >
+            Launch App <ArrowRight className="w-4 h-4" />
+          </a>
+          
+          <div className="mt-10 flex flex-wrap justify-center gap-6 text-xs text-gray-600">
+            <a href="https://warpcast.com" className="hover:text-white transition-colors">Farcaster</a>
+            <a href="https://github.com" className="hover:text-white transition-colors">GitHub</a>
+            <a href="https://twitter.com" className="hover:text-white transition-colors">Twitter</a>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-6 px-5 border-t border-[#222]">
+        <div className="max-w-3xl mx-auto text-center text-xs text-gray-600">
+          <p>© 2025 Peer Credit Circles. Built for friends, by friends.</p>
+        </div>
+      </footer>
+    </div>
   );
-}
-
-function getTimeLeft(endTime: string): string {
-  const diff = new Date(endTime).getTime() - Date.now();
-  if (diff <= 0) return 'Ended';
-  
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  
-  if (hours > 24) {
-    const days = Math.floor(hours / 24);
-    return `${days}d left`;
-  }
-  return `${hours}h ${minutes}m left`;
 }

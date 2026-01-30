@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Users, Clock, TrendingUp, Plus, ArrowUpRight, ArrowDownLeft, ChevronRight } from 'lucide-react';
 import { Pool, PoolMember, FundingRequest, getPoolMembers, getFundingRequests } from '../lib/supabase';
+import { DepositModal } from './DepositModal';
+import { WithdrawModal } from './WithdrawModal';
 
 interface PoolDetailProps {
   pool: Pool;
@@ -17,6 +19,8 @@ export function PoolDetail({ pool, userAddress, userShare, onBack, onCreateReque
   const [requests, setRequests] = useState<FundingRequest[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'members'>('overview');
   const [loading, setLoading] = useState(true);
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -94,11 +98,18 @@ export function PoolDetail({ pool, userAddress, userShare, onBack, onCreateReque
       {userAddress && (
         <section className="px-5 py-2">
           <div className="flex gap-3">
-            <button className="flex-1 flex items-center justify-center gap-2 bg-[#22c55e] text-black font-semibold py-3 rounded-xl">
+            <button 
+              onClick={() => setShowDeposit(true)}
+              className="flex-1 flex items-center justify-center gap-2 bg-[#22c55e] text-black font-semibold py-3 rounded-xl"
+            >
               <ArrowDownLeft className="w-4 h-4" />
               Deposit
             </button>
-            <button className="flex-1 flex items-center justify-center gap-2 bg-[#111116] border border-[#222] font-semibold py-3 rounded-xl hover:border-[#444]">
+            <button 
+              onClick={() => setShowWithdraw(true)}
+              disabled={!userShare || userShare.amount <= 0}
+              className="flex-1 flex items-center justify-center gap-2 bg-[#111116] border border-[#222] font-semibold py-3 rounded-xl hover:border-[#444] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <ArrowUpRight className="w-4 h-4" />
               Withdraw
             </button>
@@ -247,6 +258,34 @@ export function PoolDetail({ pool, userAddress, userShare, onBack, onCreateReque
           </div>
         )}
       </section>
+
+      {/* Modals */}
+      {showDeposit && userAddress && (
+        <DepositModal
+          isOpen={showDeposit}
+          onClose={() => setShowDeposit(false)}
+          onSuccess={() => {
+            setShowDeposit(false);
+            // Reload data
+          }}
+          pool={pool}
+          userAddress={userAddress}
+        />
+      )}
+
+      {showWithdraw && userAddress && userShare && (
+        <WithdrawModal
+          isOpen={showWithdraw}
+          onClose={() => setShowWithdraw(false)}
+          onSuccess={() => {
+            setShowWithdraw(false);
+            // Reload data
+          }}
+          pool={pool}
+          userShare={userShare}
+          userAddress={userAddress}
+        />
+      )}
     </div>
   );
 }

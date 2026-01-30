@@ -68,6 +68,36 @@ export interface Vote {
   created_at: string;
 }
 
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  creator_address: string;
+  creator_name?: string;
+  target_amount: number;
+  raised_amount: number;
+  currency: string;
+  category: 'STARTUP' | 'CREATOR' | 'COMMUNITY' | 'DEFI' | 'NFT' | 'OTHER';
+  status: 'FUNDING' | 'FUNDED' | 'CANCELLED' | 'COMPLETED';
+  deadline: string;
+  image_url?: string;
+  website_url?: string;
+  twitter_url?: string;
+  created_at: string;
+}
+
+export interface ProjectContribution {
+  id: string;
+  project_id: string;
+  pool_id: string;
+  pool_name?: string;
+  amount: number;
+  status: 'VOTING' | 'APPROVED' | 'REJECTED' | 'FUNDED';
+  voted_at?: string;
+  funded_at?: string;
+  created_at: string;
+}
+
 // Demo data (used when Supabase tables don't exist)
 const DEMO_POOLS: Pool[] = [
   {
@@ -134,6 +164,85 @@ const DEMO_REQUESTS: FundingRequest[] = [
     no_votes: 4125,
     guardian_approvals: 0,
     voting_ends_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours from now
+    created_at: new Date().toISOString(),
+  },
+];
+
+const DEMO_PROJECTS: Project[] = [
+  {
+    id: '1',
+    name: 'Onchain Analytics Platform',
+    description: 'Building the Bloomberg Terminal for DeFi. Real-time analytics, portfolio tracking, and alpha signals for serious traders.',
+    creator_address: '0xabc123...',
+    creator_name: 'DeFi Labs',
+    target_amount: 250000,
+    raised_amount: 125000,
+    currency: 'USDC',
+    category: 'DEFI',
+    status: 'FUNDING',
+    deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    website_url: 'https://example.com',
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: '2',
+    name: 'NFT Creator Collective',
+    description: 'A DAO-owned studio for independent artists. We provide tools, marketing, and community to help creators succeed.',
+    creator_address: '0xdef456...',
+    creator_name: 'Art3 Collective',
+    target_amount: 100000,
+    raised_amount: 67500,
+    currency: 'USDC',
+    category: 'CREATOR',
+    status: 'FUNDING',
+    deadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),
+    twitter_url: 'https://twitter.com/example',
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: '3',
+    name: 'Base Gaming SDK',
+    description: 'Open-source SDK for building onchain games on Base. Includes wallet integration, NFT minting, and leaderboards.',
+    creator_address: '0x789abc...',
+    creator_name: 'GameFi Builders',
+    target_amount: 75000,
+    raised_amount: 75000,
+    currency: 'USDC',
+    category: 'STARTUP',
+    status: 'FUNDED',
+    deadline: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    created_at: new Date().toISOString(),
+  },
+];
+
+const DEMO_CONTRIBUTIONS: ProjectContribution[] = [
+  {
+    id: '1',
+    project_id: '1',
+    pool_id: '1',
+    pool_name: 'Alpha Ventures',
+    amount: 50000,
+    status: 'FUNDED',
+    funded_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: '2',
+    project_id: '1',
+    pool_id: '2',
+    pool_name: 'Creator Grant',
+    amount: 75000,
+    status: 'FUNDED',
+    funded_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: '3',
+    project_id: '2',
+    pool_id: '1',
+    pool_name: 'Alpha Ventures',
+    amount: 25000,
+    status: 'VOTING',
     created_at: new Date().toISOString(),
   },
 ];
@@ -350,4 +459,97 @@ export async function getUserShare(poolId: string, walletAddress: string): Promi
   } catch (e) {
     return null;
   }
+}
+
+// ============ PROJECT FUNCTIONS ============
+
+export async function getProjects(status?: Project['status']): Promise<Project[]> {
+  try {
+    let query = supabase.from('projects').select('*');
+    if (status) query = query.eq('status', status);
+    query = query.order('created_at', { ascending: false });
+    
+    const { data, error } = await query;
+    if (error) throw error;
+    if (data && data.length > 0) return data;
+  } catch (e) {
+    console.log('Using demo data for projects');
+  }
+  return status ? DEMO_PROJECTS.filter(p => p.status === status) : DEMO_PROJECTS;
+}
+
+export async function getProject(id: string): Promise<Project | null> {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    if (data) return data;
+  } catch (e) {
+    console.log('Using demo data for project');
+  }
+  return DEMO_PROJECTS.find(p => p.id === id) || null;
+}
+
+export async function getProjectContributions(projectId: string): Promise<ProjectContribution[]> {
+  try {
+    const { data, error } = await supabase
+      .from('project_contributions')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    if (data) return data;
+  } catch (e) {
+    console.log('Using demo data for contributions');
+  }
+  return DEMO_CONTRIBUTIONS.filter(c => c.project_id === projectId);
+}
+
+export async function getPoolContributions(poolId: string): Promise<ProjectContribution[]> {
+  try {
+    const { data, error } = await supabase
+      .from('project_contributions')
+      .select('*')
+      .eq('pool_id', poolId)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    if (data) return data;
+  } catch (e) {
+    console.log('Using demo data for pool contributions');
+  }
+  return DEMO_CONTRIBUTIONS.filter(c => c.pool_id === poolId);
+}
+
+export async function createProject(project: Partial<Project>): Promise<Project | null> {
+  const { data, error } = await supabase
+    .from('projects')
+    .insert(project)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error creating project:', error);
+    return null;
+  }
+  return data;
+}
+
+export async function createContribution(contribution: Partial<ProjectContribution>): Promise<ProjectContribution | null> {
+  const { data, error } = await supabase
+    .from('project_contributions')
+    .insert(contribution)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error creating contribution:', error);
+    return null;
+  }
+  return data;
 }

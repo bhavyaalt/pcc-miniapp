@@ -2,7 +2,7 @@
 
 import { ReactNode } from 'react';
 import { WagmiProvider } from 'wagmi';
-import { base } from 'wagmi/chains';
+import { baseSepolia } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RainbowKitProvider, getDefaultConfig, darkTheme } from '@rainbow-me/rainbowkit';
 import '@rainbow-me/rainbowkit/styles.css';
@@ -10,7 +10,7 @@ import '@rainbow-me/rainbowkit/styles.css';
 const config = getDefaultConfig({
   appName: 'Peer Credit Circles',
   projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_ID || 'demo',
-  chains: [base],
+  chains: [baseSepolia],
   ssr: true,
 });
 

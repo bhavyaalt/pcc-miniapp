@@ -2,13 +2,13 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAccount } from 'wagmi';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Button, Card, CardContent, Badge, Tabs, TabsList, TabsTrigger, TabsContent } from './components/ui';
 import { PoolCard } from './components/PoolCard';
 import { CreatePoolForm } from './components/CreatePoolForm';
 import { getPools, Pool } from './lib/supabase';
-import { formatAmount, formatAddress } from './lib/utils';
+import { formatAmount } from './lib/utils';
 import { Plus, Wallet, TrendingUp, Users, Coins, Zap } from 'lucide-react';
-import { ConnectWallet, ConnectWalletText } from '@coinbase/onchainkit/wallet';
 
 // Demo pools for when DB is empty
 const demoPools: Pool[] = [
@@ -55,7 +55,6 @@ export default function Home() {
     setLoading(true);
     try {
       const data = await getPools();
-      // Use demo pools if DB is empty or not configured
       setPools(data.length > 0 ? data : demoPools);
     } catch (error) {
       console.error('Error loading pools:', error);
@@ -76,16 +75,16 @@ export default function Home() {
 
   // Stats
   const totalTVL = pools.reduce((acc, p) => {
-    if (p.deposit_token === 'ETH') return acc + p.total_deposited * 2500; // Rough ETH price
+    if (p.deposit_token === 'ETH') return acc + p.total_deposited * 2500;
     return acc + p.total_deposited;
   }, 0);
   const totalMembers = pools.reduce((acc, p) => acc + p.member_count, 0);
   const activeRequests = pools.reduce((acc, p) => acc + p.active_requests, 0);
 
   return (
-    <main className="min-h-screen bg-[hsl(240,10%,3.9%)] pb-24">
+    <main className="min-h-screen pb-24" style={{ background: 'var(--background)' }}>
       {/* Header */}
-      <header className="sticky top-0 z-40 backdrop-blur-xl bg-[hsl(240,10%,3.9%)]/80 border-b border-[hsl(240,3.7%,15.9%)]">
+      <header className="sticky top-0 z-40 backdrop-blur-xl border-b" style={{ background: 'rgba(10,10,15,0.8)', borderColor: 'var(--border)' }}>
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
@@ -93,16 +92,24 @@ export default function Home() {
             </div>
             <span className="font-bold text-lg">PCC</span>
           </div>
-          
-          {isConnected ? (
-            <Badge variant="secondary" className="font-mono">
-              {formatAddress(address || '')}
-            </Badge>
-          ) : (
-            <ConnectWallet>
-              <ConnectWalletText>Connect</ConnectWalletText>
-            </ConnectWallet>
-          )}
+          <ConnectButton.Custom>
+            {({ account, chain, openConnectModal, mounted }) => {
+              const connected = mounted && account && chain;
+              return (
+                <div>
+                  {connected ? (
+                    <Badge variant="secondary" className="font-mono">
+                      {account.displayName}
+                    </Badge>
+                  ) : (
+                    <Button onClick={openConnectModal} size="sm">
+                      Connect
+                    </Button>
+                  )}
+                </div>
+              );
+            }}
+          </ConnectButton.Custom>
         </div>
       </header>
 
@@ -110,7 +117,7 @@ export default function Home() {
         {/* Hero */}
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold">Peer Credit Circles</h1>
-          <p className="text-[hsl(240,5%,64.9%)] text-sm">
+          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
             Pool funds with friends. Fund projects together. Share rewards.
           </p>
         </div>
@@ -118,19 +125,19 @@ export default function Home() {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           <Card className="text-center p-3">
-            <Coins className="w-5 h-5 mx-auto mb-1 text-[hsl(142,76%,36%)]" />
+            <Coins className="w-5 h-5 mx-auto mb-1" style={{ color: 'var(--primary)' }} />
             <div className="text-lg font-bold">${formatAmount(totalTVL, 0)}</div>
-            <div className="text-xs text-[hsl(240,5%,64.9%)]">Total TVL</div>
+            <div className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Total TVL</div>
           </Card>
           <Card className="text-center p-3">
             <Users className="w-5 h-5 mx-auto mb-1 text-blue-400" />
             <div className="text-lg font-bold">{totalMembers}</div>
-            <div className="text-xs text-[hsl(240,5%,64.9%)]">Members</div>
+            <div className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Members</div>
           </Card>
           <Card className="text-center p-3">
             <TrendingUp className="w-5 h-5 mx-auto mb-1 text-yellow-400" />
             <div className="text-lg font-bold">{activeRequests}</div>
-            <div className="text-xs text-[hsl(240,5%,64.9%)]">Active</div>
+            <div className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Active</div>
           </Card>
         </div>
 
@@ -145,7 +152,7 @@ export default function Home() {
             {loading ? (
               <div className="space-y-3">
                 {[1, 2].map((i) => (
-                  <Card key={i} className="h-32 animate-pulse bg-[hsl(240,10%,8%)]" />
+                  <Card key={i} className="h-32 animate-pulse" style={{ background: 'var(--secondary)' }} />
                 ))}
               </div>
             ) : (
@@ -164,11 +171,9 @@ export default function Home() {
           <TabsContent value="my">
             {!isConnected ? (
               <Card className="text-center py-8">
-                <Wallet className="w-10 h-10 mx-auto mb-3 text-[hsl(240,5%,64.9%)]" />
-                <p className="text-[hsl(240,5%,64.9%)] mb-4">Connect wallet to see your pools</p>
-                <ConnectWallet>
-                  <ConnectWalletText>Connect Wallet</ConnectWalletText>
-                </ConnectWallet>
+                <Wallet className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--muted-foreground)' }} />
+                <p className="mb-4" style={{ color: 'var(--muted-foreground)' }}>Connect wallet to see your pools</p>
+                <ConnectButton />
               </Card>
             ) : (
               <div className="space-y-3">
@@ -183,7 +188,7 @@ export default function Home() {
                   ))}
                 {pools.filter((p) => p.admin_address.toLowerCase() === address?.toLowerCase()).length === 0 && (
                   <Card className="text-center py-8">
-                    <p className="text-[hsl(240,5%,64.9%)] mb-4">You haven't created any pools yet</p>
+                    <p className="mb-4" style={{ color: 'var(--muted-foreground)' }}>You haven&apos;t created any pools yet</p>
                     <Button onClick={() => setShowCreateForm(true)}>
                       <Plus className="w-4 h-4" />
                       Create Your First Pool
@@ -201,7 +206,8 @@ export default function Home() {
         <div className="fixed bottom-6 right-6">
           <Button
             size="lg"
-            className="rounded-full shadow-xl shadow-green-500/30 h-14 w-14"
+            className="rounded-full shadow-xl h-14 w-14"
+            style={{ boxShadow: '0 0 30px rgba(34, 197, 94, 0.3)' }}
             onClick={() => setShowCreateForm(true)}
           >
             <Plus className="w-6 h-6" />
@@ -233,16 +239,16 @@ export default function Home() {
 // Pool Detail Modal Component
 function PoolDetailModal({ pool, onClose, userAddress }: { pool: Pool; onClose: () => void; userAddress?: string }) {
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
-      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-[hsl(240,10%,5%)] rounded-t-2xl sm:rounded-2xl border border-[hsl(240,3.7%,15.9%)] animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: 'rgba(0,0,0,0.8)' }}>
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border animate-fade-in" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
         {/* Header */}
-        <div className="sticky top-0 bg-[hsl(240,10%,5%)] border-b border-[hsl(240,3.7%,15.9%)] p-4">
+        <div className="sticky top-0 border-b p-4" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold">{pool.name}</h2>
             <Button variant="ghost" size="sm" onClick={onClose}>✕</Button>
           </div>
           {pool.description && (
-            <p className="text-sm text-[hsl(240,5%,64.9%)] mt-1">{pool.description}</p>
+            <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>{pool.description}</p>
           )}
         </div>
 
@@ -251,11 +257,11 @@ function PoolDetailModal({ pool, onClose, userAddress }: { pool: Pool; onClose: 
           {/* Stats Grid */}
           <div className="grid grid-cols-2 gap-3">
             <Card className="p-3">
-              <div className="text-sm text-[hsl(240,5%,64.9%)]">Total Deposited</div>
+              <div className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Total Deposited</div>
               <div className="text-xl font-bold">{formatAmount(pool.total_deposited)} {pool.deposit_token}</div>
             </Card>
             <Card className="p-3">
-              <div className="text-sm text-[hsl(240,5%,64.9%)]">Members</div>
+              <div className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Members</div>
               <div className="text-xl font-bold">{pool.member_count}</div>
             </Card>
           </div>
@@ -264,13 +270,13 @@ function PoolDetailModal({ pool, onClose, userAddress }: { pool: Pool; onClose: 
           <Card className="p-4 space-y-3">
             <h3 className="font-semibold">Pool Configuration</h3>
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="text-[hsl(240,5%,64.9%)]">Voting Period</div>
+              <div style={{ color: 'var(--muted-foreground)' }}>Voting Period</div>
               <div>{pool.voting_period_days} days</div>
-              <div className="text-[hsl(240,5%,64.9%)]">Quorum</div>
+              <div style={{ color: 'var(--muted-foreground)' }}>Quorum</div>
               <div>{pool.quorum_percent}%</div>
-              <div className="text-[hsl(240,5%,64.9%)]">Approval Threshold</div>
+              <div style={{ color: 'var(--muted-foreground)' }}>Approval Threshold</div>
               <div>{pool.approval_threshold_percent}%</div>
-              <div className="text-[hsl(240,5%,64.9%)]">Guardian Threshold</div>
+              <div style={{ color: 'var(--muted-foreground)' }}>Guardian Threshold</div>
               <div>{pool.guardian_threshold_percent}%</div>
             </div>
           </Card>
@@ -282,7 +288,7 @@ function PoolDetailModal({ pool, onClose, userAddress }: { pool: Pool; onClose: 
                 <h3 className="font-semibold">Active Requests</h3>
                 <Badge variant="warning">{pool.active_requests}</Badge>
               </div>
-              <p className="text-sm text-[hsl(240,5%,64.9%)]">
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                 Voting is in progress. Connect wallet to participate.
               </p>
             </Card>
@@ -302,8 +308,8 @@ function PoolDetailModal({ pool, onClose, userAddress }: { pool: Pool; onClose: 
 
           {/* Admin Notice */}
           {userAddress && pool.admin_address.toLowerCase() === userAddress.toLowerCase() && (
-            <Card className="p-3 border-[hsl(142,76%,36%)]">
-              <div className="flex items-center gap-2 text-sm text-[hsl(142,76%,36%)]">
+            <Card className="p-3" style={{ borderColor: 'var(--primary)' }}>
+              <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--primary)' }}>
                 <Zap className="w-4 h-4" />
                 You are the admin of this pool
               </div>

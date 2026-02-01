@@ -1,10 +1,10 @@
 import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
-export const size = { width: 180, height: 180 };
+export const size = { width: 192, height: 192 };
 export const contentType = 'image/png';
 
-export default function AppleIcon() {
+export default function Icon192() {
   return new ImageResponse(
     (
       <div
@@ -15,10 +15,10 @@ export default function AppleIcon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          borderRadius: '36px',
+          borderRadius: '40px',
         }}
       >
-        <svg width="130" height="130" viewBox="0 0 24 24">
+        <svg width="140" height="140" viewBox="0 0 24 24">
           <circle cx="8" cy="14" r="5.5" fill="rgba(255,255,255,0.15)" stroke="white" strokeWidth="1.5"/>
           <circle cx="12" cy="8" r="5.5" fill="rgba(255,255,255,0.15)" stroke="white" strokeWidth="1.5"/>
           <circle cx="16" cy="14" r="5.5" fill="rgba(255,255,255,0.15)" stroke="white" strokeWidth="1.5"/>

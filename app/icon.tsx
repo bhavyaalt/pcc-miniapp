@@ -15,48 +15,15 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          borderRadius: '8px',
+          borderRadius: '6px',
         }}
       >
-        {/* Three overlapping circles representing peer circles */}
-        <div style={{ display: 'flex', position: 'relative', width: 24, height: 24 }}>
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: 4,
-              width: 12,
-              height: 12,
-              borderRadius: '50%',
-              border: '2px solid white',
-              background: 'rgba(255,255,255,0.2)',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              left: 6,
-              top: 0,
-              width: 12,
-              height: 12,
-              borderRadius: '50%',
-              border: '2px solid white',
-              background: 'rgba(255,255,255,0.2)',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              left: 12,
-              top: 4,
-              width: 12,
-              height: 12,
-              borderRadius: '50%',
-              border: '2px solid white',
-              background: 'rgba(255,255,255,0.2)',
-            }}
-          />
-        </div>
+        {/* Three overlapping circles - cleaner design */}
+        <svg width="24" height="24" viewBox="0 0 24 24">
+          <circle cx="8" cy="14" r="6" fill="none" stroke="white" strokeWidth="2" opacity="0.9"/>
+          <circle cx="12" cy="8" r="6" fill="none" stroke="white" strokeWidth="2" opacity="0.9"/>
+          <circle cx="16" cy="14" r="6" fill="none" stroke="white" strokeWidth="2" opacity="0.9"/>
+        </svg>
       </div>
     ),
     { ...size }

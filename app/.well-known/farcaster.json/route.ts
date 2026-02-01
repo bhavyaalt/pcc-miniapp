@@ -10,16 +10,24 @@ export async function GET() {
       signature: process.env.FARCASTER_SIGNATURE || "",
     },
     frame: {
-      version: "next",
+      version: "1",
       name: "Peer Credit Circles",
-      iconUrl: `${APP_URL}/icon.png`,
+      iconUrl: `${APP_URL}/icon-192`,
       homeUrl: APP_URL,
-      imageUrl: `${APP_URL}/og-image.png`,
+      imageUrl: `${APP_URL}/opengraph-image`,
       buttonTitle: "Launch PCC",
-      splashImageUrl: `${APP_URL}/splash.png`,
+      splashImageUrl: `${APP_URL}/opengraph-image`,
       splashBackgroundColor: "#0a0a0f",
       webhookUrl: `${APP_URL}/api/webhook`,
     },
+    // Base Sepolia network configuration
+    chains: {
+      "eip155:84532": {
+        name: "Base Sepolia",
+        rpcUrl: "https://sepolia.base.org",
+      },
+    },
+    primaryChainId: "eip155:84532",
   };
 
   return NextResponse.json(config);

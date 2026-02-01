@@ -2,9 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAccount } from 'wagmi';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { FarcasterConnect } from '../components/FarcasterConnect';
-import { useFarcaster } from '../providers/FarcasterProvider';
+import { useFarcasterContext } from '../hooks/useFarcasterContext';
 import { Plus, LayoutGrid, Info, Users, CheckSquare, ChevronRight, TrendingUp, Settings, Target } from 'lucide-react';
 import { getPools, getActiveRequests, getProjects, Pool, FundingRequest, Project, getUserShare } from '../lib/supabase';
 import { CreatePoolModal } from '../components/CreatePoolModal';
@@ -20,7 +19,7 @@ type View = 'home' | 'pool-detail' | 'project-detail' | 'my-pools' | 'activity' 
 
 export default function Home() {
   const { address, isConnected } = useAccount();
-  const { isInFarcaster, user: farcasterUser } = useFarcaster();
+  const { isInFarcaster, user: farcasterUser } = useFarcasterContext();
   
   // State
   const [view, setView] = useState<View>('home');

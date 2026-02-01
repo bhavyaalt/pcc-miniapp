@@ -1,32 +1,42 @@
 'use client';
 
-import { ReactNode } from 'react';
-import { WagmiProvider } from 'wagmi';
+import { ReactNode, useEffect } from 'react';
+import { WagmiProvider, createConfig, http } from 'wagmi';
 import { baseSepolia } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { RainbowKitProvider, getDefaultConfig, darkTheme } from '@rainbow-me/rainbowkit';
-import { FarcasterProvider } from './providers/FarcasterProvider';
-import '@rainbow-me/rainbowkit/styles.css';
+import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
+import { sdk } from '@farcaster/miniapp-sdk';
 
-const config = getDefaultConfig({
-  appName: 'Peer Credit Circles',
-  projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_ID || 'demo',
+// Wagmi config with Farcaster Mini App connector
+const config = createConfig({
   chains: [baseSepolia],
-  ssr: true,
+  transports: {
+    [baseSepolia.id]: http('https://sepolia.base.org'),
+  },
+  connectors: [
+    farcasterMiniApp()
+  ],
 });
 
 const queryClient = new QueryClient();
 
+function MiniAppReady({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    // Signal to Farcaster that the app is ready
+    sdk.actions.ready().catch(console.error);
+  }, []);
+
+  return <>{children}</>;
+}
+
 export function RootProvider({ children }: { children: ReactNode }) {
   return (
-    <FarcasterProvider>
-      <WagmiProvider config={config}>
-        <QueryClientProvider client={queryClient}>
-          <RainbowKitProvider theme={darkTheme({ accentColor: '#22c55e' })}>
-            {children}
-          </RainbowKitProvider>
-        </QueryClientProvider>
-      </WagmiProvider>
-    </FarcasterProvider>
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <MiniAppReady>
+          {children}
+        </MiniAppReady>
+      </QueryClientProvider>
+    </WagmiProvider>
   );
 }

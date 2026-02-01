@@ -5,6 +5,7 @@ import { WagmiProvider } from 'wagmi';
 import { baseSepolia } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RainbowKitProvider, getDefaultConfig, darkTheme } from '@rainbow-me/rainbowkit';
+import { FarcasterProvider } from './providers/FarcasterProvider';
 import '@rainbow-me/rainbowkit/styles.css';
 
 const config = getDefaultConfig({
@@ -18,12 +19,14 @@ const queryClient = new QueryClient();
 
 export function RootProvider({ children }: { children: ReactNode }) {
   return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={darkTheme({ accentColor: '#22c55e' })}>
-          {children}
-        </RainbowKitProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
+    <FarcasterProvider>
+      <WagmiProvider config={config}>
+        <QueryClientProvider client={queryClient}>
+          <RainbowKitProvider theme={darkTheme({ accentColor: '#22c55e' })}>
+            {children}
+          </RainbowKitProvider>
+        </QueryClientProvider>
+      </WagmiProvider>
+    </FarcasterProvider>
   );
 }

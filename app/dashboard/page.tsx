@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { FarcasterConnect } from '../components/FarcasterConnect';
+import { useFarcaster } from '../providers/FarcasterProvider';
 import { Plus, LayoutGrid, Info, Users, CheckSquare, ChevronRight, TrendingUp, Settings, Target } from 'lucide-react';
 import { getPools, getActiveRequests, getProjects, Pool, FundingRequest, Project, getUserShare } from '../lib/supabase';
 import { CreatePoolModal } from '../components/CreatePoolModal';
@@ -18,6 +20,7 @@ type View = 'home' | 'pool-detail' | 'project-detail' | 'my-pools' | 'activity' 
 
 export default function Home() {
   const { address, isConnected } = useAccount();
+  const { isInFarcaster, user: farcasterUser } = useFarcaster();
   
   // State
   const [view, setView] = useState<View>('home');
@@ -150,48 +153,33 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#0a0a0f] text-white pb-24">
       {/* Header */}
-      <header className="px-5 pt-6 pb-4 flex items-center justify-between">
+      <header className="px-4 pt-4 pb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[#22c55e] flex items-center justify-center">
-            <span className="text-black font-bold text-sm">cb</span>
+          <div className="w-7 h-7 rounded-lg bg-[#22c55e] flex items-center justify-center">
+            <span className="text-black font-bold text-xs">P</span>
           </div>
-          <span className="font-semibold text-lg">PCC</span>
+          <span className="font-semibold text-sm">PCC</span>
         </div>
         
-        <ConnectButton.Custom>
-          {({ account, openConnectModal, openAccountModal, mounted }) => {
-            const connected = mounted && account;
-            return connected ? (
-              <button 
-                onClick={openAccountModal}
-                className="flex items-center gap-2 bg-[#1a1a1f] rounded-full pl-3 pr-2 py-1.5"
-              >
-                <span className="text-sm">{account.displayName}</span>
-                <div className="w-6 h-6 rounded-full bg-[#333] flex items-center justify-center">
-                  <span className="text-xs">👤</span>
-                </div>
-              </button>
-            ) : (
-              <button 
-                onClick={openConnectModal}
-                className="bg-[#22c55e] text-black rounded-full px-4 py-1.5 text-sm font-medium"
-              >
-                Connect
-              </button>
-            );
-          }}
-        </ConnectButton.Custom>
+        <div className="flex items-center gap-2">
+          {isInFarcaster && (
+            <span className="bg-purple-500/20 text-purple-400 text-[10px] px-2 py-0.5 rounded-full">
+              FC
+            </span>
+          )}
+          <FarcasterConnect />
+        </div>
       </header>
 
       {/* Hero Stat */}
-      <section className="px-5 py-6 text-center">
-        <p className="text-[#666] text-xs tracking-wider mb-2">TOTAL POOLED VALUE</p>
-        <h1 className="text-5xl font-bold mb-2">
+      <section className="px-5 py-4 text-center">
+        <p className="text-[#666] text-[10px] tracking-wider mb-1">TOTAL POOLED VALUE</p>
+        <h1 className="text-3xl font-bold mb-1">
           {formatMoney(Math.round(totalPooledValue))}
-          <span className="text-[#22c55e] text-3xl">$</span>
+          <span className="text-[#22c55e] text-xl">$</span>
         </h1>
         {isConnected && userTotalValue > 0 && (
-          <p className="text-[#22c55e] text-sm">
+          <p className="text-[#22c55e] text-xs">
             <TrendingUp className="w-3 h-3 inline mr-1" />
             Your share: {formatMoney(Math.round(userTotalValue))}$
           </p>
@@ -199,13 +187,13 @@ export default function Home() {
       </section>
 
       {/* Tabs */}
-      <nav className="px-5 mb-6">
+      <nav className="px-4 mb-4">
         <div className="flex gap-1 overflow-x-auto">
           {['Dashboard', 'Projects', 'My Pools', 'Settings'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab.toLowerCase().replace(' ', '-'))}
-              className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-all ${
                 activeTab === tab.toLowerCase().replace(' ', '-')
                   ? 'bg-white text-black font-medium'
                   : 'text-[#888] hover:text-white'
@@ -251,9 +239,9 @@ export default function Home() {
                       </div>
                       
                       <p className="text-white/80 text-sm mb-1">Funding Request #{request.onchain_id}</p>
-                      <p className="text-4xl font-bold text-white mb-4">
+                      <p className="text-2xl font-bold text-white mb-3">
                         {formatMoney(parseFloat(request.amount))}
-                        <span className="text-2xl">{pool?.deposit_token_symbol === 'ETH' ? 'Ξ' : '$'}</span>
+                        <span className="text-lg">{pool?.deposit_token_symbol === 'ETH' ? 'Ξ' : '$'}</span>
                       </p>
                       
                       <div className="h-1.5 bg-black/20 rounded-full mb-2">
@@ -300,30 +288,30 @@ export default function Home() {
                         setSelectedPool(pool);
                         setView('pool-detail');
                       }}
-                      className="w-full bg-[#111116] border border-[#222] rounded-2xl p-4 flex items-center justify-between text-left hover:border-[#333] transition-all"
+                      className="w-full bg-[#111116] border border-[#222] rounded-xl p-3 flex items-center justify-between text-left hover:border-[#333] transition-all"
                     >
                       <div>
-                        <h3 className="font-semibold mb-1">{pool.name}</h3>
-                        <p className="text-[#666] text-xs mb-1">
+                        <h3 className="font-semibold text-sm mb-0.5">{pool.name}</h3>
+                        <p className="text-[#666] text-[10px] mb-0.5">
                           {userShare ? 'Your Share' : 'Total Pooled'}
                         </p>
-                        <p className="text-2xl font-bold">
+                        <p className="text-lg font-bold">
                           {formatMoney(userShare?.amount || parseFloat(pool.total_deposited))}
-                          <span className="text-[#22c55e] text-lg ml-1">
+                          <span className="text-[#22c55e] text-sm ml-1">
                             {pool.deposit_token_symbol === 'ETH' ? 'Ξ' : '$'}
                           </span>
                         </p>
                       </div>
                       
                       <div className="text-right">
-                        <span className="text-[#666] text-sm">{pool.deposit_token_symbol}</span>
-                        <div className="mt-2">
+                        <span className="text-[#666] text-xs">{pool.deposit_token_symbol}</span>
+                        <div className="mt-1">
                           {sharePercent >= 50 ? (
-                            <span className="text-[#22c55e] font-semibold text-lg">{sharePercent.toFixed(0)}%</span>
+                            <span className="text-[#22c55e] font-semibold text-sm">{sharePercent.toFixed(0)}%</span>
                           ) : sharePercent > 0 ? (
-                            <span className="text-[#888] font-medium">{sharePercent.toFixed(0)}%</span>
+                            <span className="text-[#888] font-medium text-sm">{sharePercent.toFixed(0)}%</span>
                           ) : (
-                            <ChevronRight className="w-5 h-5 text-[#666] ml-auto" />
+                            <ChevronRight className="w-4 h-4 text-[#666] ml-auto" />
                           )}
                         </div>
                       </div>
@@ -342,7 +330,7 @@ export default function Home() {
           {!isConnected ? (
             <div className="text-center py-12">
               <p className="text-[#888] mb-4">Connect wallet to see your pools</p>
-              <ConnectButton />
+              <FarcasterConnect />
             </div>
           ) : Object.keys(userShares).length === 0 ? (
             <div className="text-center py-12">
@@ -396,24 +384,35 @@ export default function Home() {
 
       {activeTab === 'settings' && (
         <section className="px-5">
-          <p className="text-[#666] text-xs tracking-wider mb-4">SETTINGS</p>
-          <div className="space-y-3">
-            <div className="bg-[#111116] border border-[#222] rounded-2xl p-4">
-              <p className="font-medium mb-1">Connected Wallet</p>
-              <p className="text-[#888] font-mono text-sm">
-                {address ? `${address.slice(0, 10)}...${address.slice(-8)}` : 'Not connected'}
+          <p className="text-[#666] text-[10px] tracking-wider mb-3">SETTINGS</p>
+          <div className="space-y-2">
+            {farcasterUser && (
+              <div className="bg-[#111116] border border-[#222] rounded-xl p-3">
+                <p className="font-medium text-sm mb-1">Farcaster</p>
+                <div className="flex items-center gap-2">
+                  {farcasterUser.pfpUrl && (
+                    <img src={farcasterUser.pfpUrl} className="w-6 h-6 rounded-full" alt="" />
+                  )}
+                  <p className="text-[#888] text-xs">@{farcasterUser.username || farcasterUser.fid}</p>
+                </div>
+              </div>
+            )}
+            <div className="bg-[#111116] border border-[#222] rounded-xl p-3">
+              <p className="font-medium text-sm mb-1">Wallet</p>
+              <p className="text-[#888] font-mono text-xs">
+                {address ? `${address.slice(0, 8)}...${address.slice(-6)}` : 'Not connected'}
               </p>
             </div>
-            <div className="bg-[#111116] border border-[#222] rounded-2xl p-4">
-              <p className="font-medium mb-1">Network</p>
-              <p className="text-[#888] text-sm">Base</p>
+            <div className="bg-[#111116] border border-[#222] rounded-xl p-3">
+              <p className="font-medium text-sm mb-1">Network</p>
+              <p className="text-[#888] text-xs">Base</p>
             </div>
           </div>
         </section>
       )}
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0f]/95 backdrop-blur-lg border-t border-[#222] px-6 py-4">
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0f]/95 backdrop-blur-lg border-t border-[#222] px-6 py-3 z-50">
         <div className="flex items-center justify-around">
           <button 
             onClick={() => setActiveTab('dashboard')}
@@ -431,9 +430,9 @@ export default function Home() {
           {/* Center FAB */}
           <button 
             onClick={() => setShowCreatePool(true)}
-            className="w-12 h-12 bg-[#22c55e] rounded-full flex items-center justify-center -mt-6 shadow-lg shadow-[#22c55e]/30"
+            className="w-10 h-10 bg-[#22c55e] rounded-full flex items-center justify-center -mt-5 shadow-lg shadow-[#22c55e]/30"
           >
-            <Plus className="w-6 h-6 text-black" />
+            <Plus className="w-5 h-5 text-black" />
           </button>
           
           <button 
